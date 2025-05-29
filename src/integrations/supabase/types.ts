@@ -9,7 +9,188 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      test_cases: {
+        Row: {
+          created_at: string
+          description: string | null
+          expected_result: string | null
+          generated_by_ai: boolean
+          id: string
+          plan_id: string | null
+          preconditions: string | null
+          priority: string
+          steps: Json
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          expected_result?: string | null
+          generated_by_ai?: boolean
+          id?: string
+          plan_id?: string | null
+          preconditions?: string | null
+          priority?: string
+          steps?: Json
+          title: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          expected_result?: string | null
+          generated_by_ai?: boolean
+          id?: string
+          plan_id?: string | null
+          preconditions?: string | null
+          priority?: string
+          steps?: Json
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_cases_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_executions: {
+        Row: {
+          actual_result: string | null
+          case_id: string
+          executed_at: string
+          executed_by: string
+          id: string
+          notes: string | null
+          plan_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          actual_result?: string | null
+          case_id: string
+          executed_at?: string
+          executed_by: string
+          id?: string
+          notes?: string | null
+          plan_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          actual_result?: string | null
+          case_id?: string
+          executed_at?: string
+          executed_by?: string
+          id?: string
+          notes?: string | null
+          plan_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_executions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "test_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_executions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "test_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_plans: {
+        Row: {
+          approach: string | null
+          created_at: string
+          criteria: string | null
+          description: string | null
+          generated_by_ai: boolean
+          id: string
+          objective: string | null
+          resources: string | null
+          risks: string | null
+          schedule: string | null
+          scope: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approach?: string | null
+          created_at?: string
+          criteria?: string | null
+          description?: string | null
+          generated_by_ai?: boolean
+          id?: string
+          objective?: string | null
+          resources?: string | null
+          risks?: string | null
+          schedule?: string | null
+          scope?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approach?: string | null
+          created_at?: string
+          criteria?: string | null
+          description?: string | null
+          generated_by_ai?: boolean
+          id?: string
+          objective?: string | null
+          resources?: string | null
+          risks?: string | null
+          schedule?: string | null
+          scope?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

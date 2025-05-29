@@ -11,7 +11,7 @@ import {
   Sparkles 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { getTestPlans, getTestCases, getTestExecutions } from '@/services/firebaseService';
+import { getTestPlans, getTestCases, getTestExecutions } from '@/services/supabaseService';
 import { TestPlan, TestCase, TestExecution } from '@/types';
 
 export const Dashboard = () => {
@@ -34,9 +34,9 @@ export const Dashboard = () => {
   const loadDashboardData = async () => {
     try {
       const [plans, cases, executions] = await Promise.all([
-        getTestPlans(user!.uid),
-        getTestCases(user!.uid),
-        getTestExecutions(user!.uid)
+        getTestPlans(user!.id),
+        getTestCases(user!.id),
+        getTestExecutions(user!.id)
       ]);
 
       const passedExecutions = executions.filter(e => e.status === 'passed').length;
@@ -158,14 +158,14 @@ export const Dashboard = () => {
                       {plan.description}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
-                      {plan.generatedByAI && (
+                      {plan.generated_by_ai && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs rounded">
                           <Sparkles className="h-3 w-3" />
                           IA
                         </span>
                       )}
                       <span className="text-xs text-gray-500">
-                        {plan.updatedAt.toLocaleDateString()}
+                        {plan.updated_at.toLocaleDateString()}
                       </span>
                     </div>
                   </div>

@@ -16,45 +16,45 @@ export interface TestPlan {
   resources: string;
   schedule: string;
   risks: string;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-  generatedByAI: boolean;
+  created_at: Date;
+  updated_at: Date;
+  user_id: string;
+  generated_by_ai: boolean;
 }
 
 export interface TestCase {
   id: string;
-  planId: string;
+  plan_id: string;
   title: string;
   description: string;
   preconditions: string;
   steps: TestStep[];
-  expectedResult: string;
+  expected_result: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   type: 'functional' | 'integration' | 'performance' | 'security' | 'usability';
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-  generatedByAI: boolean;
+  created_at: Date;
+  updated_at: Date;
+  user_id: string;
+  generated_by_ai: boolean;
 }
 
 export interface TestStep {
   id: string;
   action: string;
-  expectedResult: string;
+  expected_result: string;
   order: number;
 }
 
 export interface TestExecution {
   id: string;
-  caseId: string;
-  planId: string;
+  case_id: string;
+  plan_id: string;
   status: 'passed' | 'failed' | 'blocked' | 'not_tested';
-  actualResult: string;
+  actual_result: string;
   notes: string;
-  executedAt: Date;
-  executedBy: string;
-  userId: string;
+  executed_at: Date;
+  executed_by: string;
+  user_id: string;
 }
 
 export interface Theme {
