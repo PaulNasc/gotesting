@@ -1,4 +1,5 @@
 
+
 import { supabase } from '@/integrations/supabase/client';
 import { TestPlan, TestCase, TestExecution, TestStep } from '@/types';
 
@@ -96,7 +97,7 @@ export const getTestCases = async (userId: string, planId?: string): Promise<Tes
 
   return data.map(testCase => ({
     ...testCase,
-    steps: Array.isArray(testCase.steps) ? testCase.steps as TestStep[] : [],
+    steps: Array.isArray(testCase.steps) ? (testCase.steps as unknown as TestStep[]) : [],
     priority: testCase.priority as 'low' | 'medium' | 'high' | 'critical',
     type: testCase.type as 'functional' | 'integration' | 'performance' | 'security' | 'usability',
     created_at: new Date(testCase.created_at),
@@ -121,7 +122,7 @@ export const createTestCase = async (testCase: Omit<TestCase, 'id' | 'created_at
 
   return {
     ...data,
-    steps: Array.isArray(data.steps) ? data.steps as TestStep[] : [],
+    steps: Array.isArray(data.steps) ? (data.steps as unknown as TestStep[]) : [],
     priority: data.priority as 'low' | 'medium' | 'high' | 'critical',
     type: data.type as 'functional' | 'integration' | 'performance' | 'security' | 'usability',
     created_at: new Date(data.created_at),
@@ -156,7 +157,7 @@ export const updateTestCase = async (id: string, updates: Partial<TestCase>): Pr
 
   return {
     ...data,
-    steps: Array.isArray(data.steps) ? data.steps as TestStep[] : [],
+    steps: Array.isArray(data.steps) ? (data.steps as unknown as TestStep[]) : [],
     priority: data.priority as 'low' | 'medium' | 'high' | 'critical',
     type: data.type as 'functional' | 'integration' | 'performance' | 'security' | 'usability',
     created_at: new Date(data.created_at),
@@ -258,3 +259,4 @@ export const deleteTestExecution = async (id: string): Promise<void> => {
     throw error;
   }
 };
+
