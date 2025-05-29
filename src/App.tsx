@@ -9,6 +9,11 @@ import { ThemeProvider } from "@/hooks/useTheme";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Dashboard } from "@/components/Dashboard";
+import { TestPlans } from "@/pages/TestPlans";
+import { TestCases } from "@/pages/TestCases";
+import { TestExecutions } from "@/pages/TestExecutions";
+import { AIGenerator } from "@/pages/AIGenerator";
+import { History } from "@/pages/History";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -26,6 +31,11 @@ const App = () => (
               <Layout>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/plans" element={<TestPlans />} />
+                  <Route path="/cases" element={<TestCases />} />
+                  <Route path="/executions" element={<TestExecutions />} />
+                  <Route path="/ai-generator" element={<AIGenerator />} />
+                  <Route path="/history" element={<History />} />
                   <Route path="/legacy" element={<Index />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />

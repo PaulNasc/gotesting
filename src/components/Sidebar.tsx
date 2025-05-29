@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   FileText, 
   TestTube, 
@@ -19,6 +20,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ className }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
 
   const menuItems = [
     { icon: Home, label: 'Dashboard', href: '/' },
@@ -51,14 +53,17 @@ export const Sidebar = ({ className }: SidebarProps) => {
 
       <nav className="mt-4">
         {menuItems.map((item) => (
-          <a
+          <Link
             key={item.href}
-            href={item.href}
-            className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            to={item.href}
+            className={cn(
+              "flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
+              location.pathname === item.href && "bg-gray-100 dark:bg-gray-700 border-r-2 border-blue-500"
+            )}
           >
             <item.icon className="h-5 w-5 flex-shrink-0" />
             {!collapsed && <span className="ml-3">{item.label}</span>}
-          </a>
+          </Link>
         ))}
       </nav>
     </div>
