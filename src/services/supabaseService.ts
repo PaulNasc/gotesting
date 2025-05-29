@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { TestPlan, TestCase, TestExecution } from '@/types';
+import { TestPlan, TestCase, TestExecution, TestStep } from '@/types';
 
 // Funções para Planos de Teste
 export const getTestPlans = async (userId: string): Promise<TestPlan[]> => {
@@ -42,9 +42,12 @@ export const createTestPlan = async (plan: Omit<TestPlan, 'id' | 'created_at' | 
 };
 
 export const updateTestPlan = async (id: string, updates: Partial<TestPlan>): Promise<TestPlan> => {
+  // Remove created_at and updated_at from updates, convert Date to string
+  const { created_at, updated_at, ...cleanUpdates } = updates;
+  
   const { data, error } = await supabase
     .from('test_plans')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...cleanUpdates, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single();
@@ -93,6 +96,9 @@ export const getTestCases = async (userId: string, planId?: string): Promise<Tes
 
   return data.map(testCase => ({
     ...testCase,
+    steps: Array.isArray(testCase.steps) ? testCase.steps as TestStep[] : [],
+    priority: testCase.priority as 'low' | 'medium' | 'high' | 'critical',
+    type: testCase.type as 'functional' | 'integration' | 'performance' | 'security' | 'usability',
     created_at: new Date(testCase.created_at),
     updated_at: new Date(testCase.updated_at)
   }));
@@ -101,7 +107,10 @@ export const getTestCases = async (userId: string, planId?: string): Promise<Tes
 export const createTestCase = async (testCase: Omit<TestCase, 'id' | 'created_at' | 'updated_at'>): Promise<TestCase> => {
   const { data, error } = await supabase
     .from('test_cases')
-    .insert([testCase])
+    .insert([{
+      ...testCase,
+      steps: testCase.steps as any // Convert TestStep[] to Json
+    }])
     .select()
     .single();
 
@@ -112,15 +121,30 @@ export const createTestCase = async (testCase: Omit<TestCase, 'id' | 'created_at
 
   return {
     ...data,
+    steps: Array.isArray(data.steps) ? data.steps as TestStep[] : [],
+    priority: data.priority as 'low' | 'medium' | 'high' | 'critical',
+    type: data.type as 'functional' | 'integration' | 'performance' | 'security' | 'usability',
     created_at: new Date(data.created_at),
     updated_at: new Date(data.updated_at)
   };
 };
 
 export const updateTestCase = async (id: string, updates: Partial<TestCase>): Promise<TestCase> => {
+  // Remove created_at and updated_at from updates, convert Date to string and TestStep[] to Json
+  const { created_at, updated_at, steps, ...cleanUpdates } = updates;
+  
+  const updateData: any = {
+    ...cleanUpdates,
+    updated_at: new Date().toISOString()
+  };
+
+  if (steps) {
+    updateData.steps = steps; // Convert TestStep[] to Json
+  }
+
   const { data, error } = await supabase
     .from('test_cases')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -132,6 +156,9 @@ export const updateTestCase = async (id: string, updates: Partial<TestCase>): Pr
 
   return {
     ...data,
+    steps: Array.isArray(data.steps) ? data.steps as TestStep[] : [],
+    priority: data.priority as 'low' | 'medium' | 'high' | 'critical',
+    type: data.type as 'functional' | 'integration' | 'performance' | 'security' | 'usability',
     created_at: new Date(data.created_at),
     updated_at: new Date(data.updated_at)
   };
@@ -173,6 +200,7 @@ export const getTestExecutions = async (userId: string, planId?: string, caseId?
 
   return data.map(execution => ({
     ...execution,
+    status: execution.status as 'passed' | 'failed' | 'blocked' | 'not_tested',
     executed_at: new Date(execution.executed_at)
   }));
 };
@@ -191,14 +219,18 @@ export const createTestExecution = async (execution: Omit<TestExecution, 'id' | 
 
   return {
     ...data,
+    status: data.status as 'passed' | 'failed' | 'blocked' | 'not_tested',
     executed_at: new Date(data.executed_at)
   };
 };
 
 export const updateTestExecution = async (id: string, updates: Partial<TestExecution>): Promise<TestExecution> => {
+  // Remove executed_at from updates, convert Date to string
+  const { executed_at, ...cleanUpdates } = updates;
+  
   const { data, error } = await supabase
     .from('test_executions')
-    .update(updates)
+    .update(cleanUpdates)
     .eq('id', id)
     .select()
     .single();
@@ -210,6 +242,7 @@ export const updateTestExecution = async (id: string, updates: Partial<TestExecu
 
   return {
     ...data,
+    status: data.status as 'passed' | 'failed' | 'blocked' | 'not_tested',
     executed_at: new Date(data.executed_at)
   };
 };
