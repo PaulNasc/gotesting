@@ -3,15 +3,18 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, TestTube, Calendar, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestCases } from '@/services/supabaseService';
 import { TestCase } from '@/types';
+import { TestCaseForm } from '@/components/forms/TestCaseForm';
 
 export const TestCases = () => {
   const { user } = useAuth();
   const [cases, setCases] = useState<TestCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -28,6 +31,11 @@ export const TestCases = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCaseCreated = (testCase: TestCase) => {
+    setCases(prev => [testCase, ...prev]);
+    setShowForm(false);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -56,14 +64,20 @@ export const TestCases = () => {
           <p className="text-gray-600 dark:text-gray-400">Gerencie seus casos de teste</p>
         </div>
         <div className="flex gap-2">
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Caso
-          </Button>
-          <Button variant="outline" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Gerar com IA
-          </Button>
+          <Dialog open={showForm} onOpenChange={setShowForm}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Caso
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <TestCaseForm 
+                onSuccess={handleCaseCreated}
+                onCancel={() => setShowForm(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -116,7 +130,7 @@ export const TestCases = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Comece criando seu primeiro caso de teste
           </p>
-          <Button>Criar Primeiro Caso</Button>
+          <Button onClick={() => setShowForm(true)}>Criar Primeiro Caso</Button>
         </div>
       )}
     </div>

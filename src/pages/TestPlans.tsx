@@ -3,15 +3,18 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, FileText, Calendar, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestPlans } from '@/services/supabaseService';
 import { TestPlan } from '@/types';
+import { TestPlanForm } from '@/components/forms/TestPlanForm';
 
 export const TestPlans = () => {
   const { user } = useAuth();
   const [plans, setPlans] = useState<TestPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -30,6 +33,11 @@ export const TestPlans = () => {
     }
   };
 
+  const handlePlanCreated = (plan: TestPlan) => {
+    setPlans(prev => [plan, ...prev]);
+    setShowForm(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -46,14 +54,20 @@ export const TestPlans = () => {
           <p className="text-gray-600 dark:text-gray-400">Gerencie seus planos de teste</p>
         </div>
         <div className="flex gap-2">
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Plano
-          </Button>
-          <Button variant="outline" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Gerar com IA
-          </Button>
+          <Dialog open={showForm} onOpenChange={setShowForm}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Plano
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <TestPlanForm 
+                onSuccess={handlePlanCreated}
+                onCancel={() => setShowForm(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -98,7 +112,7 @@ export const TestPlans = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Comece criando seu primeiro plano de teste
           </p>
-          <Button>Criar Primeiro Plano</Button>
+          <Button onClick={() => setShowForm(true)}>Criar Primeiro Plano</Button>
         </div>
       )}
     </div>

@@ -3,15 +3,18 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, PlayCircle, Calendar } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestExecutions } from '@/services/supabaseService';
 import { TestExecution } from '@/types';
+import { TestExecutionForm } from '@/components/forms/TestExecutionForm';
 
 export const TestExecutions = () => {
   const { user } = useAuth();
   const [executions, setExecutions] = useState<TestExecution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -28,6 +31,11 @@ export const TestExecutions = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExecutionCreated = (execution: TestExecution) => {
+    setExecutions(prev => [execution, ...prev]);
+    setShowForm(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -65,10 +73,20 @@ export const TestExecutions = () => {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Execuções de Teste</h2>
           <p className="text-gray-600 dark:text-gray-400">Acompanhe suas execuções de teste</p>
         </div>
-        <Button className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Nova Execução
-        </Button>
+        <Dialog open={showForm} onOpenChange={setShowForm}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Nova Execução
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <TestExecutionForm 
+              onSuccess={handleExecutionCreated}
+              onCancel={() => setShowForm(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {executions.length > 0 ? (
@@ -116,7 +134,7 @@ export const TestExecutions = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Comece executando seus primeiros testes
           </p>
-          <Button>Criar Primeira Execução</Button>
+          <Button onClick={() => setShowForm(true)}>Criar Primeira Execução</Button>
         </div>
       )}
     </div>

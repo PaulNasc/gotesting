@@ -1,9 +1,44 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, FileText, TestTube } from 'lucide-react';
+import { Sparkles, FileText, TestTube, ArrowLeft } from 'lucide-react';
+import { AIGeneratorForm } from '@/components/forms/AIGeneratorForm';
+import { useNavigate } from 'react-router-dom';
 
 export const AIGenerator = () => {
+  const [showForm, setShowForm] = useState(false);
+  const [generationType, setGenerationType] = useState<'plan' | 'case'>('plan');
+  const navigate = useNavigate();
+
+  const handleGenerationSuccess = (data: any) => {
+    setShowForm(false);
+    // Redirecionar para a página apropriada
+    if (generationType === 'plan') {
+      navigate('/plans');
+    } else {
+      navigate('/cases');
+    }
+  };
+
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Gerar {generationType === 'plan' ? 'Plano' : 'Caso'} de Teste com IA
+          </h2>
+        </div>
+        
+        <AIGeneratorForm onSuccess={handleGenerationSuccess} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -14,7 +49,8 @@ export const AIGenerator = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-        <Card className="text-center">
+        <Card className="text-center cursor-pointer hover:shadow-md transition-shadow" 
+              onClick={() => { setGenerationType('plan'); setShowForm(true); }}>
           <CardHeader>
             <div className="mx-auto mb-4">
               <FileText className="h-12 w-12 text-blue-600" />
@@ -34,7 +70,8 @@ export const AIGenerator = () => {
           </CardContent>
         </Card>
 
-        <Card className="text-center">
+        <Card className="text-center cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => { setGenerationType('case'); setShowForm(true); }}>
           <CardHeader>
             <div className="mx-auto mb-4">
               <TestTube className="h-12 w-12 text-green-600" />
