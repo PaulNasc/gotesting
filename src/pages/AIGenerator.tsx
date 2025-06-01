@@ -2,13 +2,13 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, FileText, TestTube, ArrowLeft } from 'lucide-react';
+import { Sparkles, FileText, TestTube, PlayCircle, ArrowLeft } from 'lucide-react';
 import { AIGeneratorForm } from '@/components/forms/AIGeneratorForm';
 import { useNavigate } from 'react-router-dom';
 
 export const AIGenerator = () => {
   const [showForm, setShowForm] = useState(false);
-  const [generationType, setGenerationType] = useState<'plan' | 'case'>('plan');
+  const [generationType, setGenerationType] = useState<'plan' | 'case' | 'execution'>('plan');
   const navigate = useNavigate();
 
   const handleGenerationSuccess = (data: any) => {
@@ -16,8 +16,10 @@ export const AIGenerator = () => {
     // Redirecionar para a página apropriada
     if (generationType === 'plan') {
       navigate('/plans');
-    } else {
+    } else if (generationType === 'case') {
       navigate('/cases');
+    } else {
+      navigate('/executions');
     }
   };
 
@@ -30,11 +32,11 @@ export const AIGenerator = () => {
             Voltar
           </Button>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Gerar {generationType === 'plan' ? 'Plano' : 'Caso'} de Teste com IA
+            Gerar {generationType === 'plan' ? 'Plano' : generationType === 'case' ? 'Caso' : 'Execução'} de Teste com IA
           </h2>
         </div>
         
-        <AIGeneratorForm onSuccess={handleGenerationSuccess} />
+        <AIGeneratorForm onSuccess={handleGenerationSuccess} initialType={generationType} />
       </div>
     );
   }
@@ -44,11 +46,11 @@ export const AIGenerator = () => {
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Gerador IA</h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Use inteligência artificial para gerar planos e casos de teste automaticamente
+          Use inteligência artificial para gerar planos, casos e execuções de teste automaticamente
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
         <Card className="text-center cursor-pointer hover:shadow-md transition-shadow" 
               onClick={() => { setGenerationType('plan'); setShowForm(true); }}>
           <CardHeader>
@@ -90,6 +92,27 @@ export const AIGenerator = () => {
             </Button>
           </CardContent>
         </Card>
+
+        <Card className="text-center cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => { setGenerationType('execution'); setShowForm(true); }}>
+          <CardHeader>
+            <div className="mx-auto mb-4">
+              <PlayCircle className="h-12 w-12 text-purple-600" />
+            </div>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Gerar Execução de Teste
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Simule execuções de teste automaticamente baseadas em casos existentes
+            </p>
+            <Button className="w-full" variant="secondary">
+              Começar Geração
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="max-w-2xl mx-auto">
@@ -117,7 +140,7 @@ export const AIGenerator = () => {
                 <div>
                   <h4 className="font-medium">IA analisa e gera</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Nossa IA cria planos e casos de teste personalizados
+                    Nossa IA cria planos, casos e execuções de teste personalizados
                   </p>
                 </div>
               </div>

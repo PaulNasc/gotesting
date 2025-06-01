@@ -63,9 +63,9 @@ export const TestExecutionForm = ({ onSuccess, onCancel, caseId, planId }: TestE
     }
   };
 
-  const loadCases = async (planId: string) => {
+  const loadCases = async (selectedPlanId: string) => {
     try {
-      const data = await getTestCases(user!.id, planId);
+      const data = await getTestCases(user!.id, selectedPlanId);
       setCases(data);
     } catch (error) {
       console.error('Erro ao carregar casos:', error);
@@ -142,7 +142,7 @@ export const TestExecutionForm = ({ onSuccess, onCancel, caseId, planId }: TestE
                 value={formData.case_id} 
                 onValueChange={(value) => handleChange('case_id', value)} 
                 required
-                disabled={!formData.plan_id}
+                disabled={!formData.plan_id && !planId}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um caso de teste" />
@@ -171,7 +171,7 @@ export const TestExecutionForm = ({ onSuccess, onCancel, caseId, planId }: TestE
                   <div>
                     <h4 className="font-medium mb-2">Passos:</h4>
                     <ol className="list-decimal list-inside space-y-1">
-                      {selectedCase.steps.map((step, index) => (
+                      {selectedCase.steps.map((step) => (
                         <li key={step.id} className="text-sm">
                           <strong>Ação:</strong> {step.action}
                           <br />
@@ -223,12 +223,13 @@ export const TestExecutionForm = ({ onSuccess, onCancel, caseId, planId }: TestE
           </div>
 
           <div>
-            <Label htmlFor="executed_by">Executado por</Label>
+            <Label htmlFor="executed_by">Executado por *</Label>
             <Textarea
               id="executed_by"
               value={formData.executed_by}
               onChange={(e) => handleChange('executed_by', e.target.value)}
               rows={1}
+              required
             />
           </div>
 

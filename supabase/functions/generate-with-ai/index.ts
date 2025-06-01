@@ -22,7 +22,7 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY não configurada');
     }
 
-    const { type, description, context, requirements, userId } = await req.json();
+    const { type, description, context, requirements, userId, caseId, planId } = await req.json();
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -49,7 +49,7 @@ serve(async (req) => {
           "risks": "riscos identificados"
         }
       `;
-    } else {
+    } else if (type === 'case') {
       prompt = `
         Crie um caso de teste detalhado em português brasileiro para o seguinte sistema/funcionalidade:
         
@@ -73,6 +73,36 @@ serve(async (req) => {
           "expected_result": "resultado esperado final",
           "priority": "medium",
           "type": "functional"
+        }
+      `;
+    } else if (type === 'execution') {
+      // Buscar dados do caso de teste para contexto
+      const { data: testCase } = await supabase
+        .from('test_cases')
+        .select('*')
+        .eq('id', caseId)
+        .single();
+
+      if (!testCase) {
+        throw new Error('Caso de teste não encontrado');
+      }
+
+      prompt = `
+        Gere uma execução de teste realística em português brasileiro para o seguinte caso de teste:
+        
+        Caso de Teste: ${testCase.title}
+        Descrição: ${testCase.description}
+        Passos: ${JSON.stringify(testCase.steps)}
+        
+        Contexto adicional: ${description}
+        ${context ? `Observações: ${context}` : ''}
+        
+        Retorne um JSON válido com a seguinte estrutura:
+        {
+          "status": "passed" ou "failed" ou "blocked",
+          "actual_result": "resultado obtido durante a execução simulada",
+          "notes": "observações sobre a execução",
+          "executed_by": "Testador IA"
         }
       `;
     }
@@ -126,11 +156,12 @@ serve(async (req) => {
 
       if (error) throw error;
       result = plan;
-    } else {
+    } else if (type === 'case') {
       const { data: testCase, error } = await supabase
         .from('test_cases')
         .insert([{
           ...generatedData,
+          plan_id: planId || null,
           user_id: userId,
           generated_by_ai: true
         }])
@@ -139,6 +170,20 @@ serve(async (req) => {
 
       if (error) throw error;
       result = testCase;
+    } else if (type === 'execution') {
+      const { data: execution, error } = await supabase
+        .from('test_executions')
+        .insert([{
+          ...generatedData,
+          case_id: caseId,
+          plan_id: planId,
+          user_id: userId
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      result = execution;
     }
 
     return new Response(JSON.stringify({ success: true, data: result }), {

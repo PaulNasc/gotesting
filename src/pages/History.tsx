@@ -1,102 +1,199 @@
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { History as HistoryIcon, Calendar, FileText, TestTube, PlayCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { History as HistoryIcon, FileText, TestTube, PlayCircle, Sparkles, Calendar } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { getTestPlans, getTestCases, getTestExecutions } from '@/services/supabaseService';
+import { TestPlan, TestCase, TestExecution } from '@/types';
+
+interface HistoryItem {
+  id: string;
+  type: 'plan' | 'case' | 'execution';
+  title: string;
+  description?: string;
+  created_at: Date;
+  updated_at: Date;
+  generated_by_ai?: boolean;
+  status?: string;
+  priority?: string;
+}
 
 export const History = () => {
+  const { user } = useAuth();
+  const [items, setItems] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadHistoryData();
+    }
+  }, [user]);
+
+  const loadHistoryData = async () => {
+    try {
+      const [plans, cases, executions] = await Promise.all([
+        getTestPlans(user!.id),
+        getTestCases(user!.id),
+        getTestExecutions(user!.id)
+      ]);
+
+      const historyItems: HistoryItem[] = [
+        ...plans.map(plan => ({
+          id: plan.id,
+          type: 'plan' as const,
+          title: plan.title,
+          description: plan.description,
+          created_at: plan.created_at,
+          updated_at: plan.updated_at,
+          generated_by_ai: plan.generated_by_ai
+        })),
+        ...cases.map(testCase => ({
+          id: testCase.id,
+          type: 'case' as const,
+          title: testCase.title,
+          description: testCase.description,
+          created_at: testCase.created_at,
+          updated_at: testCase.updated_at,
+          generated_by_ai: testCase.generated_by_ai,
+          priority: testCase.priority
+        })),
+        ...executions.map(execution => ({
+          id: execution.id,
+          type: 'execution' as const,
+          title: `Execução #${execution.id.slice(0, 8)}`,
+          description: execution.notes,
+          created_at: execution.executed_at,
+          updated_at: execution.executed_at,
+          status: execution.status
+        }))
+      ];
+
+      // Ordenar por data mais recente
+      historyItems.sort((a, b) => b.updated_at.getTime() - a.updated_at.getTime());
+      setItems(historyItems);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'plan': return <FileText className="h-5 w-5 text-blue-600" />;
+      case 'case': return <TestTube className="h-5 w-5 text-green-600" />;
+      case 'execution': return <PlayCircle className="h-5 w-5 text-purple-600" />;
+      default: return <HistoryIcon className="h-5 w-5" />;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'plan': return 'Plano de Teste';
+      case 'case': return 'Caso de Teste';
+      case 'execution': return 'Execução';
+      default: return type;
+    }
+  };
+
+  const getStatusColor = (status?: string) => {
+    if (!status) return '';
+    switch (status) {
+      case 'passed': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'blocked': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'not_tested': return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+  };
+
+  const getPriorityColor = (priority?: string) => {
+    if (!priority) return '';
+    switch (priority) {
+      case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Histórico</h2>
-        <p className="text-gray-600 dark:text-gray-400">Acompanhe o histórico de atividades</p>
+        <p className="text-gray-600 dark:text-gray-400">Visualize todas as suas atividades recentes</p>
       </div>
 
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HistoryIcon className="h-5 w-5" />
-              Atividades Recentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-2">
-                  <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+      {items.length > 0 ? (
+        <div className="space-y-4">
+          {items.map((item) => (
+            <Card key={`${item.type}-${item.id}`} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {getTypeIcon(item.type)}
+                    <div>
+                      <CardTitle className="text-lg">{item.title}</CardTitle>
+                      <p className="text-sm text-gray-500">{getTypeLabel(item.type)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {item.generated_by_ai && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        IA
+                      </Badge>
+                    )}
+                    {item.status && (
+                      <Badge className={getStatusColor(item.status)}>
+                        {item.status === 'passed' ? 'Aprovado' : 
+                         item.status === 'failed' ? 'Reprovado' :
+                         item.status === 'blocked' ? 'Bloqueado' : 'Não Testado'}
+                      </Badge>
+                    )}
+                    {item.priority && (
+                      <Badge className={getPriorityColor(item.priority)}>
+                        {item.priority}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium">Plano de teste criado</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Sistema de Login - Testes de autenticação
+              </CardHeader>
+              {item.description && (
+                <CardContent>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    {item.description}
                   </p>
-                </div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Hoje
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="bg-green-100 dark:bg-green-900 rounded-full p-2">
-                  <TestTube className="h-4 w-4 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">Caso de teste adicionado</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    TC001 - Validar login com credenciais válidas
-                  </p>
-                </div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Hoje
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-2">
-                  <PlayCircle className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">Execução de teste realizada</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    TC001 - Status: Aprovado
-                  </p>
-                </div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Ontem
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Estatísticas do Período</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">3</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Planos Criados</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">12</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Casos Criados</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">8</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Execuções</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">75%</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Taxa de Sucesso</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <Calendar className="h-3 w-3" />
+                    Última atualização: {item.updated_at.toLocaleDateString()} às {item.updated_at.toLocaleTimeString()}
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <HistoryIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            Nenhum histórico encontrado
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400">
+            Comece criando seus primeiros planos, casos ou execuções de teste
+          </p>
+        </div>
+      )}
     </div>
   );
 };

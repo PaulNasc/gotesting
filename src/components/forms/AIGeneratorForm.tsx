@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,20 +9,57 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { getTestPlans, getTestCases } from '@/services/supabaseService';
+import { TestPlan, TestCase } from '@/types';
 
 interface AIGeneratorFormProps {
   onSuccess?: (data: any) => void;
+  initialType?: 'plan' | 'case' | 'execution';
 }
 
-export const AIGeneratorForm = ({ onSuccess }: AIGeneratorFormProps) => {
+export const AIGeneratorForm = ({ onSuccess, initialType = 'plan' }: AIGeneratorFormProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [plans, setPlans] = useState<TestPlan[]>([]);
+  const [cases, setCases] = useState<TestCase[]>([]);
   const [formData, setFormData] = useState({
-    type: 'plan' as 'plan' | 'case',
+    type: initialType,
     description: '',
     context: '',
-    requirements: ''
+    requirements: '',
+    planId: '',
+    caseId: ''
   });
+
+  useEffect(() => {
+    if (user) {
+      loadPlans();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (formData.planId && formData.type === 'execution') {
+      loadCases(formData.planId);
+    }
+  }, [formData.planId, formData.type]);
+
+  const loadPlans = async () => {
+    try {
+      const data = await getTestPlans(user!.id);
+      setPlans(data);
+    } catch (error) {
+      console.error('Erro ao carregar planos:', error);
+    }
+  };
+
+  const loadCases = async (planId: string) => {
+    try {
+      const data = await getTestCases(user!.id, planId);
+      setCases(data);
+    } catch (error) {
+      console.error('Erro ao carregar casos:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,21 +67,30 @@ export const AIGeneratorForm = ({ onSuccess }: AIGeneratorFormProps) => {
 
     setLoading(true);
     try {
+      const requestBody: any = {
+        type: formData.type,
+        description: formData.description,
+        context: formData.context,
+        requirements: formData.requirements,
+        userId: user.id
+      };
+
+      if (formData.type === 'execution') {
+        requestBody.caseId = formData.caseId;
+        requestBody.planId = formData.planId;
+      } else if (formData.type === 'case' && formData.planId) {
+        requestBody.planId = formData.planId;
+      }
+
       const { data, error } = await supabase.functions.invoke('generate-with-ai', {
-        body: {
-          type: formData.type,
-          description: formData.description,
-          context: formData.context,
-          requirements: formData.requirements,
-          userId: user.id
-        }
+        body: requestBody
       });
 
       if (error) throw error;
 
       toast({
         title: "Sucesso",
-        description: `${formData.type === 'plan' ? 'Plano' : 'Caso'} de teste gerado com IA!`
+        description: `${formData.type === 'plan' ? 'Plano' : formData.type === 'case' ? 'Caso' : 'Execução'} de teste gerado com IA!`
       });
 
       onSuccess?.(data);
@@ -83,18 +129,87 @@ export const AIGeneratorForm = ({ onSuccess }: AIGeneratorFormProps) => {
               <SelectContent>
                 <SelectItem value="plan">Plano de Teste</SelectItem>
                 <SelectItem value="case">Caso de Teste</SelectItem>
+                <SelectItem value="execution">Execução de Teste</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {formData.type === 'execution' && (
+            <>
+              <div>
+                <Label htmlFor="planId">Plano de Teste *</Label>
+                <Select value={formData.planId} onValueChange={(value) => handleChange('planId', value)} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um plano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="caseId">Caso de Teste *</Label>
+                <Select 
+                  value={formData.caseId} 
+                  onValueChange={(value) => handleChange('caseId', value)} 
+                  required
+                  disabled={!formData.planId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um caso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cases.map((testCase) => (
+                      <SelectItem key={testCase.id} value={testCase.id}>
+                        {testCase.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {formData.type === 'case' && (
+            <div>
+              <Label htmlFor="planId">Plano de Teste (Opcional)</Label>
+              <Select value={formData.planId} onValueChange={(value) => handleChange('planId', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um plano (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
-            <Label htmlFor="description">Descrição do Sistema/Funcionalidade *</Label>
+            <Label htmlFor="description">
+              {formData.type === 'execution' 
+                ? 'Contexto da Execução *' 
+                : 'Descrição do Sistema/Funcionalidade *'
+              }
+            </Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
               rows={4}
-              placeholder="Descreva o sistema ou funcionalidade que será testada"
+              placeholder={
+                formData.type === 'execution'
+                  ? "Descreva o contexto da execução, ambiente de teste, etc."
+                  : "Descreva o sistema ou funcionalidade que será testada"
+              }
               required
             />
           </div>
@@ -110,19 +225,25 @@ export const AIGeneratorForm = ({ onSuccess }: AIGeneratorFormProps) => {
             />
           </div>
 
-          <div>
-            <Label htmlFor="requirements">Requisitos Específicos</Label>
-            <Textarea
-              id="requirements"
-              value={formData.requirements}
-              onChange={(e) => handleChange('requirements', e.target.value)}
-              rows={3}
-              placeholder="Liste requisitos específicos ou cenários que devem ser cobertos"
-            />
-          </div>
+          {formData.type !== 'execution' && (
+            <div>
+              <Label htmlFor="requirements">Requisitos Específicos</Label>
+              <Textarea
+                id="requirements"
+                value={formData.requirements}
+                onChange={(e) => handleChange('requirements', e.target.value)}
+                rows={3}
+                placeholder="Liste requisitos específicos ou cenários que devem ser cobertos"
+              />
+            </div>
+          )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={loading} className="min-w-[200px]">
+            <Button 
+              type="submit" 
+              disabled={loading || (formData.type === 'execution' && (!formData.planId || !formData.caseId))} 
+              className="min-w-[200px]"
+            >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
