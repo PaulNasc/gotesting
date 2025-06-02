@@ -4,17 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, TestTube, Calendar, Sparkles } from 'lucide-react';
+import { Plus, TestTube, Calendar, Sparkles, Grid, List, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestCases } from '@/services/supabaseService';
 import { TestCase } from '@/types';
 import { TestCaseForm } from '@/components/forms/TestCaseForm';
+import { DetailModal } from '@/components/DetailModal';
+import { StandardButton } from '@/components/StandardButton';
 
 export const TestCases = () => {
   const { user } = useAuth();
   const [cases, setCases] = useState<TestCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [selectedCase, setSelectedCase] = useState<TestCase | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   useEffect(() => {
     if (user) {
@@ -36,6 +41,11 @@ export const TestCases = () => {
   const handleCaseCreated = (testCase: TestCase) => {
     setCases(prev => [testCase, ...prev]);
     setShowForm(false);
+  };
+
+  const handleViewDetails = (testCase: TestCase) => {
+    setSelectedCase(testCase);
+    setShowDetailModal(true);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -63,13 +73,30 @@ export const TestCases = () => {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Casos de Teste</h2>
           <p className="text-gray-600 dark:text-gray-400">Gerencie seus casos de teste</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className="flex border rounded-md">
+            <StandardButton
+              variant={viewMode === 'cards' ? 'default' : 'outline'}
+              size="sm"
+              icon={Grid}
+              onClick={() => setViewMode('cards')}
+            >
+              Cards
+            </StandardButton>
+            <StandardButton
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              icon={List}
+              onClick={() => setViewMode('list')}
+            >
+              Lista
+            </StandardButton>
+          </div>
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
+              <StandardButton icon={Plus}>
                 Novo Caso
-              </Button>
+              </StandardButton>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <TestCaseForm 
@@ -82,45 +109,97 @@ export const TestCases = () => {
       </div>
 
       {cases.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cases.map((testCase) => (
-            <Card key={testCase.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{testCase.title}</CardTitle>
-                  {testCase.generated_by_ai && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      IA
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  {testCase.description}
-                </p>
-                <div className="flex items-center gap-2 mb-4">
-                  <Badge className={getPriorityColor(testCase.priority)}>
-                    {testCase.priority}
-                  </Badge>
-                  <Badge variant="outline">
-                    {testCase.type}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {testCase.updated_at.toLocaleDateString()}
+        viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {cases.map((testCase) => (
+              <Card key={testCase.id} className="hover:shadow-md transition-shadow h-fit">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg line-clamp-2">{testCase.title}</CardTitle>
+                    {testCase.generated_by_ai && (
+                      <Badge variant="secondary" className="flex items-center gap-1 ml-2">
+                        <Sparkles className="h-3 w-3" />
+                        IA
+                      </Badge>
+                    )}
                   </div>
-                  <Button variant="outline" size="sm">
-                    Ver Detalhes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                    {testCase.description}
+                  </p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Badge className={getPriorityColor(testCase.priority)}>
+                      {testCase.priority}
+                    </Badge>
+                    <Badge variant="outline">
+                      {testCase.type}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Calendar className="h-3 w-3" />
+                      {testCase.updated_at.toLocaleDateString()}
+                    </div>
+                    <StandardButton 
+                      variant="outline" 
+                      size="sm"
+                      icon={Eye}
+                      onClick={() => handleViewDetails(testCase)}
+                    >
+                      Ver Detalhes
+                    </StandardButton>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {cases.map((testCase) => (
+              <Card key={testCase.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium">{testCase.title}</h3>
+                        {testCase.generated_by_ai && (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            IA
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        {testCase.description}
+                      </p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge className={getPriorityColor(testCase.priority)}>
+                          {testCase.priority}
+                        </Badge>
+                        <Badge variant="outline">
+                          {testCase.type}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        {testCase.updated_at.toLocaleDateString()}
+                      </div>
+                    </div>
+                    <StandardButton 
+                      variant="outline" 
+                      size="sm"
+                      icon={Eye}
+                      onClick={() => handleViewDetails(testCase)}
+                    >
+                      Ver Detalhes
+                    </StandardButton>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       ) : (
         <div className="text-center py-12">
           <TestTube className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -130,9 +209,26 @@ export const TestCases = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Comece criando seu primeiro caso de teste
           </p>
-          <Button onClick={() => setShowForm(true)}>Criar Primeiro Caso</Button>
+          <StandardButton onClick={() => setShowForm(true)}>
+            Criar Primeiro Caso
+          </StandardButton>
         </div>
       )}
+
+      <DetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        item={selectedCase}
+        type="case"
+        onEdit={() => {
+          // TODO: Implementar edição
+          setShowDetailModal(false);
+        }}
+        onDelete={() => {
+          // TODO: Implementar exclusão
+          setShowDetailModal(false);
+        }}
+      />
     </div>
   );
 };

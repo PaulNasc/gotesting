@@ -4,17 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, PlayCircle, Calendar } from 'lucide-react';
+import { Plus, PlayCircle, Calendar, Grid, List, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestExecutions } from '@/services/supabaseService';
 import { TestExecution } from '@/types';
 import { TestExecutionForm } from '@/components/forms/TestExecutionForm';
+import { DetailModal } from '@/components/DetailModal';
+import { StandardButton } from '@/components/StandardButton';
 
 export const TestExecutions = () => {
   const { user } = useAuth();
   const [executions, setExecutions] = useState<TestExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [selectedExecution, setSelectedExecution] = useState<TestExecution | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   useEffect(() => {
     if (user) {
@@ -36,6 +41,11 @@ export const TestExecutions = () => {
   const handleExecutionCreated = (execution: TestExecution) => {
     setExecutions(prev => [execution, ...prev]);
     setShowForm(false);
+  };
+
+  const handleViewDetails = (execution: TestExecution) => {
+    setSelectedExecution(execution);
+    setShowDetailModal(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -73,58 +83,123 @@ export const TestExecutions = () => {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Execuções de Teste</h2>
           <p className="text-gray-600 dark:text-gray-400">Acompanhe suas execuções de teste</p>
         </div>
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Nova Execução
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <TestExecutionForm 
-              onSuccess={handleExecutionCreated}
-              onCancel={() => setShowForm(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2 items-center">
+          <div className="flex border rounded-md">
+            <StandardButton
+              variant={viewMode === 'cards' ? 'default' : 'outline'}
+              size="sm"
+              icon={Grid}
+              onClick={() => setViewMode('cards')}
+            >
+              Cards
+            </StandardButton>
+            <StandardButton
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              icon={List}
+              onClick={() => setViewMode('list')}
+            >
+              Lista
+            </StandardButton>
+          </div>
+          <Dialog open={showForm} onOpenChange={setShowForm}>
+            <DialogTrigger asChild>
+              <StandardButton icon={Plus}>
+                Nova Execução
+              </StandardButton>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <TestExecutionForm 
+                onSuccess={handleExecutionCreated}
+                onCancel={() => setShowForm(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {executions.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {executions.map((execution) => (
-            <Card key={execution.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Execução #{execution.id.slice(0, 8)}</CardTitle>
-                  <Badge className={getStatusColor(execution.status)}>
-                    {getStatusLabel(execution.status)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm">
-                    <span className="font-medium">Executado por:</span> {execution.executed_by}
-                  </p>
-                  {execution.notes && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {execution.notes}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {execution.executed_at.toLocaleDateString()}
+        viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {executions.map((execution) => (
+              <Card key={execution.id} className="hover:shadow-md transition-shadow h-fit">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg">Execução #{execution.id.slice(0, 8)}</CardTitle>
+                    <Badge className={getStatusColor(execution.status)}>
+                      {getStatusLabel(execution.status)}
+                    </Badge>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Ver Detalhes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2 mb-4">
+                    <p className="text-sm">
+                      <span className="font-medium">Executado por:</span> {execution.executed_by}
+                    </p>
+                    {execution.notes && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+                        {execution.notes}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Calendar className="h-3 w-3" />
+                      {execution.executed_at.toLocaleDateString()}
+                    </div>
+                    <StandardButton 
+                      variant="outline" 
+                      size="sm"
+                      icon={Eye}
+                      onClick={() => handleViewDetails(execution)}
+                    >
+                      Ver Detalhes
+                    </StandardButton>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {executions.map((execution) => (
+              <Card key={execution.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium">Execução #{execution.id.slice(0, 8)}</h3>
+                        <Badge className={getStatusColor(execution.status)}>
+                          {getStatusLabel(execution.status)}
+                        </Badge>
+                      </div>
+                      <p className="text-sm">
+                        <span className="font-medium">Executado por:</span> {execution.executed_by}
+                      </p>
+                      {execution.notes && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          {execution.notes}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        {execution.executed_at.toLocaleDateString()}
+                      </div>
+                    </div>
+                    <StandardButton 
+                      variant="outline" 
+                      size="sm"
+                      icon={Eye}
+                      onClick={() => handleViewDetails(execution)}
+                    >
+                      Ver Detalhes
+                    </StandardButton>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       ) : (
         <div className="text-center py-12">
           <PlayCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -134,9 +209,26 @@ export const TestExecutions = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Comece executando seus primeiros testes
           </p>
-          <Button onClick={() => setShowForm(true)}>Criar Primeira Execução</Button>
+          <StandardButton onClick={() => setShowForm(true)}>
+            Criar Primeira Execução
+          </StandardButton>
         </div>
       )}
+
+      <DetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        item={selectedExecution}
+        type="execution"
+        onEdit={() => {
+          // TODO: Implementar edição
+          setShowDetailModal(false);
+        }}
+        onDelete={() => {
+          // TODO: Implementar exclusão
+          setShowDetailModal(false);
+        }}
+      />
     </div>
   );
 };

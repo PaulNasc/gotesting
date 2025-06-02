@@ -4,17 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, FileText, Calendar, Sparkles } from 'lucide-react';
+import { Plus, FileText, Calendar, Sparkles, Grid, List, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestPlans } from '@/services/supabaseService';
 import { TestPlan } from '@/types';
 import { TestPlanForm } from '@/components/forms/TestPlanForm';
+import { DetailModal } from '@/components/DetailModal';
+import { StandardButton } from '@/components/StandardButton';
 
 export const TestPlans = () => {
   const { user } = useAuth();
   const [plans, setPlans] = useState<TestPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<TestPlan | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   useEffect(() => {
     if (user) {
@@ -38,6 +43,11 @@ export const TestPlans = () => {
     setShowForm(false);
   };
 
+  const handleViewDetails = (plan: TestPlan) => {
+    setSelectedPlan(plan);
+    setShowDetailModal(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -53,13 +63,30 @@ export const TestPlans = () => {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Planos de Teste</h2>
           <p className="text-gray-600 dark:text-gray-400">Gerencie seus planos de teste</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className="flex border rounded-md">
+            <StandardButton
+              variant={viewMode === 'cards' ? 'default' : 'outline'}
+              size="sm"
+              icon={Grid}
+              onClick={() => setViewMode('cards')}
+            >
+              Cards
+            </StandardButton>
+            <StandardButton
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              icon={List}
+              onClick={() => setViewMode('list')}
+            >
+              Lista
+            </StandardButton>
+          </div>
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
+              <StandardButton icon={Plus}>
                 Novo Plano
-              </Button>
+              </StandardButton>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <TestPlanForm 
@@ -72,37 +99,81 @@ export const TestPlans = () => {
       </div>
 
       {plans.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <Card key={plan.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{plan.title}</CardTitle>
-                  {plan.generated_by_ai && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      IA
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  {plan.description}
-                </p>
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {plan.updated_at.toLocaleDateString()}
+        viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {plans.map((plan) => (
+              <Card key={plan.id} className="hover:shadow-md transition-shadow h-fit">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg line-clamp-2">{plan.title}</CardTitle>
+                    {plan.generated_by_ai && (
+                      <Badge variant="secondary" className="flex items-center gap-1 ml-2">
+                        <Sparkles className="h-3 w-3" />
+                        IA
+                      </Badge>
+                    )}
                   </div>
-                  <Button variant="outline" size="sm">
-                    Ver Detalhes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                    {plan.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Calendar className="h-3 w-3" />
+                      {plan.updated_at.toLocaleDateString()}
+                    </div>
+                    <StandardButton 
+                      variant="outline" 
+                      size="sm"
+                      icon={Eye}
+                      onClick={() => handleViewDetails(plan)}
+                    >
+                      Ver Detalhes
+                    </StandardButton>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {plans.map((plan) => (
+              <Card key={plan.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium">{plan.title}</h3>
+                        {plan.generated_by_ai && (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            IA
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        {plan.description}
+                      </p>
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        {plan.updated_at.toLocaleDateString()}
+                      </div>
+                    </div>
+                    <StandardButton 
+                      variant="outline" 
+                      size="sm"
+                      icon={Eye}
+                      onClick={() => handleViewDetails(plan)}
+                    >
+                      Ver Detalhes
+                    </StandardButton>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       ) : (
         <div className="text-center py-12">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -112,9 +183,26 @@ export const TestPlans = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Comece criando seu primeiro plano de teste
           </p>
-          <Button onClick={() => setShowForm(true)}>Criar Primeiro Plano</Button>
+          <StandardButton onClick={() => setShowForm(true)}>
+            Criar Primeiro Plano
+          </StandardButton>
         </div>
       )}
+
+      <DetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        item={selectedPlan}
+        type="plan"
+        onEdit={() => {
+          // TODO: Implementar edição
+          setShowDetailModal(false);
+        }}
+        onDelete={() => {
+          // TODO: Implementar exclusão
+          setShowDetailModal(false);
+        }}
+      />
     </div>
   );
 };
