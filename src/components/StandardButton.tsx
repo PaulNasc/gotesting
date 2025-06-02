@@ -4,7 +4,7 @@ import { LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface StandardButtonProps {
-  children: ReactNode;
+  children?: ReactNode;
   onClick?: () => void;
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   size?: 'default' | 'sm' | 'lg' | 'icon';
@@ -38,7 +38,7 @@ export const StandardButton = ({
       {loading ? (
         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
       ) : Icon ? (
-        <Icon className="h-4 w-4 mr-2" />
+        <Icon className={`h-4 w-4 ${children ? 'mr-2' : ''}`} />
       ) : null}
       {children}
     </Button>
