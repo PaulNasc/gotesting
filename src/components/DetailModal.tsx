@@ -49,6 +49,27 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
     }
   };
 
+  const getItemTitle = () => {
+    if (type === 'execution') {
+      return `Execução #${item.id.slice(0, 8)}`;
+    }
+    return (item as TestPlan | TestCase).title;
+  };
+
+  const getItemDescription = () => {
+    if (type === 'execution') {
+      return (item as TestExecution).notes || '';
+    }
+    return (item as TestPlan | TestCase).description || '';
+  };
+
+  const getItemDate = () => {
+    if (type === 'execution') {
+      return (item as TestExecution).executed_at;
+    }
+    return (item as TestPlan | TestCase).created_at;
+  };
+
   const getStatusColor = (status?: string) => {
     if (!status) return '';
     switch (status) {
@@ -76,7 +97,7 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {getTypeLabel()} - {item.title}
+            {getTypeLabel()} - {getItemTitle()}
             {('generated_by_ai' in item && item.generated_by_ai) && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
@@ -91,7 +112,7 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Calendar className="h-4 w-4" />
-              Criado em: {formatDate(item.created_at)}
+              {type === 'execution' ? 'Executado em:' : 'Criado em:'} {formatDate(getItemDate())}
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <User className="h-4 w-4" />
@@ -121,12 +142,16 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
           </div>
 
           {/* Descrição */}
-          <div>
-            <h3 className="font-medium mb-2">Descrição</h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-wrap">
-              {item.description}
-            </p>
-          </div>
+          {getItemDescription() && (
+            <div>
+              <h3 className="font-medium mb-2">
+                {type === 'execution' ? 'Observações' : 'Descrição'}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-wrap">
+                {getItemDescription()}
+              </p>
+            </div>
+          )}
 
           {/* Conteúdo específico por tipo */}
           {type === 'plan' && 'objective' in item && (
@@ -191,13 +216,6 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
                 <div>
                   <h3 className="font-medium mb-2">Resultado Obtido</h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">{item.actual_result}</p>
-                </div>
-              )}
-              
-              {item.notes && (
-                <div>
-                  <h3 className="font-medium mb-2">Observações</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">{item.notes}</p>
                 </div>
               )}
 
