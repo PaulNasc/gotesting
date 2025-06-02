@@ -31,47 +31,59 @@ serve(async (req) => {
     
     if (type === 'plan') {
       prompt = `
-        Crie um plano de teste detalhado em português brasileiro para o seguinte sistema/funcionalidade:
+        Crie um plano de teste específico e direto em português brasileiro para:
         
         Descrição: ${description}
         ${context ? `Contexto: ${context}` : ''}
         ${requirements ? `Requisitos: ${requirements}` : ''}
         
+        INSTRUÇÕES:
+        - Seja ESPECÍFICO e DIRETO
+        - Evite contexto desnecessário ou genérico
+        - Foque apenas no que foi solicitado
+        - Use informações fornecidas, não invente detalhes
+        
         Retorne um JSON válido com a seguinte estrutura:
         {
-          "title": "título do plano",
-          "description": "descrição detalhada",
-          "objective": "objetivo do teste",
-          "scope": "escopo dos testes",
-          "approach": "abordagem de teste",
-          "criteria": "critérios de aceite",
-          "resources": "recursos necessários",
-          "schedule": "cronograma estimado",
-          "risks": "riscos identificados"
+          "title": "título específico e direto",
+          "description": "descrição objetiva baseada nas informações fornecidas",
+          "objective": "objetivo específico do teste",
+          "scope": "escopo claro e limitado",
+          "approach": "abordagem direta de teste",
+          "criteria": "critérios objetivos de aceite",
+          "resources": "recursos essenciais necessários",
+          "schedule": "estimativa realista de cronograma",
+          "risks": "riscos específicos identificados"
         }
       `;
     } else if (type === 'case') {
       prompt = `
-        Crie um caso de teste detalhado em português brasileiro para o seguinte sistema/funcionalidade:
+        Crie um caso de teste específico e direto em português brasileiro para:
         
         Descrição: ${description}
         ${context ? `Contexto: ${context}` : ''}
         ${requirements ? `Requisitos: ${requirements}` : ''}
         
+        INSTRUÇÕES:
+        - Seja ESPECÍFICO e DIRETO
+        - Passos claros e executáveis
+        - Resultados esperados precisos
+        - Baseie-se apenas nas informações fornecidas
+        
         Retorne um JSON válido com a seguinte estrutura:
         {
-          "title": "título do caso de teste",
-          "description": "descrição do caso",
-          "preconditions": "pré-condições necessárias",
+          "title": "título específico do caso de teste",
+          "description": "descrição objetiva do caso",
+          "preconditions": "pré-condições necessárias e específicas",
           "steps": [
             {
               "id": "1",
-              "action": "ação a ser executada",
-              "expected_result": "resultado esperado",
+              "action": "ação específica a ser executada",
+              "expected_result": "resultado esperado específico",
               "order": 1
             }
           ],
-          "expected_result": "resultado esperado final",
+          "expected_result": "resultado esperado final específico",
           "priority": "medium",
           "type": "functional"
         }
@@ -89,26 +101,31 @@ serve(async (req) => {
       }
 
       prompt = `
-        Gere uma execução de teste realística em português brasileiro para o seguinte caso de teste:
+        Gere uma execução de teste realística e específica em português brasileiro para:
         
         Caso de Teste: ${testCase.title}
         Descrição: ${testCase.description}
         Passos: ${JSON.stringify(testCase.steps)}
         
-        Contexto adicional: ${description}
+        Contexto da execução: ${description}
         ${context ? `Observações: ${context}` : ''}
+        
+        INSTRUÇÕES:
+        - Simule uma execução realística
+        - Resultado específico baseado nos passos
+        - Seja direto e objetivo
         
         Retorne um JSON válido com a seguinte estrutura:
         {
           "status": "passed" ou "failed" ou "blocked",
-          "actual_result": "resultado obtido durante a execução simulada",
-          "notes": "observações sobre a execução",
+          "actual_result": "resultado específico obtido na execução simulada",
+          "notes": "observações específicas sobre a execução",
           "executed_by": "Testador IA"
         }
       `;
     }
 
-    console.log('Enviando prompt para Gemini:', prompt);
+    console.log('Enviando prompt para Gemini:', prompt.substring(0, 300) + '...');
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
@@ -120,7 +137,13 @@ serve(async (req) => {
           parts: [{
             text: prompt
           }]
-        }]
+        }],
+        generationConfig: {
+          temperature: 0.2,
+          topK: 20,
+          topP: 0.8,
+          maxOutputTokens: 2048,
+        }
       }),
     });
 

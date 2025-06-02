@@ -4,14 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { Layout } from '@/components/Layout';
 import { AuthGuard } from '@/components/AuthGuard';
-import { Index } from '@/pages/Index';
+import Index from '@/pages/Index';
 import { TestPlans } from '@/pages/TestPlans';
 import { TestCases } from '@/pages/TestCases';
 import { TestExecutions } from '@/pages/TestExecutions';
 import { AIGenerator } from '@/pages/AIGenerator';
 import { History } from '@/pages/History';
 import { Reports } from '@/pages/Reports';
-import { NotFound } from '@/pages/NotFound';
+import NotFound from '@/pages/NotFound';
 import './App.css';
 
 const queryClient = new QueryClient();

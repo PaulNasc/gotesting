@@ -6,28 +6,29 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { createTestPlan } from '@/services/supabaseService';
+import { createTestPlan, updateTestPlan } from '@/services/supabaseService';
 import { toast } from '@/components/ui/use-toast';
 import { TestPlan } from '@/types';
 
 interface TestPlanFormProps {
   onSuccess?: (plan: TestPlan) => void;
   onCancel?: () => void;
+  initialData?: TestPlan;
 }
 
-export const TestPlanForm = ({ onSuccess, onCancel }: TestPlanFormProps) => {
+export const TestPlanForm = ({ onSuccess, onCancel, initialData }: TestPlanFormProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    objective: '',
-    scope: '',
-    approach: '',
-    criteria: '',
-    resources: '',
-    schedule: '',
-    risks: ''
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    objective: initialData?.objective || '',
+    scope: initialData?.scope || '',
+    approach: initialData?.approach || '',
+    criteria: initialData?.criteria || '',
+    resources: initialData?.resources || '',
+    schedule: initialData?.schedule || '',
+    risks: initialData?.risks || ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,23 +37,31 @@ export const TestPlanForm = ({ onSuccess, onCancel }: TestPlanFormProps) => {
 
     setLoading(true);
     try {
-      const plan = await createTestPlan({
-        ...formData,
-        user_id: user.id,
-        generated_by_ai: false
-      });
-
-      toast({
-        title: "Sucesso",
-        description: "Plano de teste criado com sucesso!"
-      });
+      let plan;
+      if (initialData) {
+        plan = await updateTestPlan(initialData.id, formData);
+        toast({
+          title: "Sucesso",
+          description: "Plano de teste atualizado com sucesso!"
+        });
+      } else {
+        plan = await createTestPlan({
+          ...formData,
+          user_id: user.id,
+          generated_by_ai: false
+        });
+        toast({
+          title: "Sucesso",
+          description: "Plano de teste criado com sucesso!"
+        });
+      }
 
       onSuccess?.(plan);
     } catch (error) {
-      console.error('Erro ao criar plano:', error);
+      console.error('Erro ao salvar plano:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar plano de teste",
+        description: `Erro ao ${initialData ? 'atualizar' : 'criar'} plano de teste`,
         variant: "destructive"
       });
     } finally {
@@ -67,7 +76,7 @@ export const TestPlanForm = ({ onSuccess, onCancel }: TestPlanFormProps) => {
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle>Criar Novo Plano de Teste</CardTitle>
+        <CardTitle>{initialData ? 'Editar' : 'Criar Novo'} Plano de Teste</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -171,7 +180,7 @@ export const TestPlanForm = ({ onSuccess, onCancel }: TestPlanFormProps) => {
               </Button>
             )}
             <Button type="submit" disabled={loading}>
-              {loading ? 'Criando...' : 'Criar Plano'}
+              {loading ? (initialData ? 'Atualizando...' : 'Criando...') : (initialData ? 'Atualizar' : 'Criar')} Plano
             </Button>
           </div>
         </form>
