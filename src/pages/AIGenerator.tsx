@@ -51,64 +51,64 @@ export const AIGenerator = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-        <Card className="text-center cursor-pointer hover:shadow-md transition-shadow" 
+        <Card className="text-center cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border-2 hover:border-blue-500" 
               onClick={() => { setGenerationType('plan'); setShowForm(true); }}>
-          <CardHeader>
-            <div className="mx-auto mb-4">
-              <FileText className="h-12 w-12 text-blue-600" />
+          <CardHeader className="pb-4">
+            <div className="mx-auto mb-4 p-4 bg-blue-100 dark:bg-blue-900 rounded-full w-fit">
+              <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400" />
             </div>
-            <CardTitle className="flex items-center justify-center gap-2">
+            <CardTitle className="flex items-center justify-center gap-2 text-lg">
               <Sparkles className="h-5 w-5" />
               Gerar Plano de Teste
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <CardContent className="space-y-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
               Crie planos de teste completos baseados na descrição do seu projeto
             </p>
-            <Button className="w-full">
+            <Button className="w-full h-10 font-medium">
               Começar Geração
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="text-center cursor-pointer hover:shadow-md transition-shadow"
+        <Card className="text-center cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border-2 hover:border-green-500"
               onClick={() => { setGenerationType('case'); setShowForm(true); }}>
-          <CardHeader>
-            <div className="mx-auto mb-4">
-              <TestTube className="h-12 w-12 text-green-600" />
+          <CardHeader className="pb-4">
+            <div className="mx-auto mb-4 p-4 bg-green-100 dark:bg-green-900 rounded-full w-fit">
+              <TestTube className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
-            <CardTitle className="flex items-center justify-center gap-2">
+            <CardTitle className="flex items-center justify-center gap-2 text-lg">
               <Sparkles className="h-5 w-5" />
               Gerar Casos de Teste
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <CardContent className="space-y-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
               Gere casos de teste detalhados para funcionalidades específicas
             </p>
-            <Button className="w-full" variant="outline">
+            <Button className="w-full h-10 font-medium" variant="outline">
               Começar Geração
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="text-center cursor-pointer hover:shadow-md transition-shadow"
+        <Card className="text-center cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border-2 hover:border-purple-500"
               onClick={() => { setGenerationType('execution'); setShowForm(true); }}>
-          <CardHeader>
-            <div className="mx-auto mb-4">
-              <PlayCircle className="h-12 w-12 text-purple-600" />
+          <CardHeader className="pb-4">
+            <div className="mx-auto mb-4 p-4 bg-purple-100 dark:bg-purple-900 rounded-full w-fit">
+              <PlayCircle className="h-8 w-8 text-purple-600 dark:text-purple-400" />
             </div>
-            <CardTitle className="flex items-center justify-center gap-2">
+            <CardTitle className="flex items-center justify-center gap-2 text-lg">
               <Sparkles className="h-5 w-5" />
               Gerar Execução de Teste
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <CardContent className="space-y-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
               Simule execuções de teste automaticamente baseadas em casos existentes
             </p>
-            <Button className="w-full" variant="secondary">
+            <Button className="w-full h-10 font-medium" variant="secondary">
               Começar Geração
             </Button>
           </CardContent>
@@ -123,7 +123,7 @@ export const AIGenerator = () => {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-2">
+                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-2 min-w-[2rem] h-8 flex items-center justify-center">
                   <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">1</span>
                 </div>
                 <div>
@@ -134,7 +134,7 @@ export const AIGenerator = () => {
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-2">
+                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-2 min-w-[2rem] h-8 flex items-center justify-center">
                   <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">2</span>
                 </div>
                 <div>
@@ -145,7 +145,7 @@ export const AIGenerator = () => {
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-2">
+                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-2 min-w-[2rem] h-8 flex items-center justify-center">
                   <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">3</span>
                 </div>
                 <div>

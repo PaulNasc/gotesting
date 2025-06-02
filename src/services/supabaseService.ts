@@ -1,5 +1,3 @@
-
-
 import { supabase } from '@/integrations/supabase/client';
 import { TestPlan, TestCase, TestExecution, TestStep } from '@/types';
 
@@ -65,15 +63,14 @@ export const updateTestPlan = async (id: string, updates: Partial<TestPlan>): Pr
   };
 };
 
-export const deleteTestPlan = async (id: string): Promise<void> => {
+export const deleteTestPlan = async (id: string) => {
   const { error } = await supabase
     .from('test_plans')
     .delete()
     .eq('id', id);
 
   if (error) {
-    console.error('Erro ao deletar plano de teste:', error);
-    throw error;
+    throw new Error(`Erro ao excluir plano de teste: ${error.message}`);
   }
 };
 
@@ -165,15 +162,14 @@ export const updateTestCase = async (id: string, updates: Partial<TestCase>): Pr
   };
 };
 
-export const deleteTestCase = async (id: string): Promise<void> => {
+export const deleteTestCase = async (id: string) => {
   const { error } = await supabase
     .from('test_cases')
     .delete()
     .eq('id', id);
 
   if (error) {
-    console.error('Erro ao deletar caso de teste:', error);
-    throw error;
+    throw new Error(`Erro ao excluir caso de teste: ${error.message}`);
   }
 };
 
@@ -248,15 +244,13 @@ export const updateTestExecution = async (id: string, updates: Partial<TestExecu
   };
 };
 
-export const deleteTestExecution = async (id: string): Promise<void> => {
+export const deleteTestExecution = async (id: string) => {
   const { error } = await supabase
     .from('test_executions')
     .delete()
     .eq('id', id);
 
   if (error) {
-    console.error('Erro ao deletar execução de teste:', error);
-    throw error;
+    throw new Error(`Erro ao excluir execução de teste: ${error.message}`);
   }
 };
-

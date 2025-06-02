@@ -2,10 +2,14 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { History as HistoryIcon, FileText, TestTube, PlayCircle, Sparkles, Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { History as HistoryIcon, FileText, TestTube, PlayCircle, Sparkles, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { getTestPlans, getTestCases, getTestExecutions } from '@/services/supabaseService';
+import { getTestPlans, getTestCases, getTestExecutions, deleteTestPlan, deleteTestCase, deleteTestExecution } from '@/services/supabaseService';
 import { TestPlan, TestCase, TestExecution } from '@/types';
+import { DetailModal } from '@/components/DetailModal';
+import { useNavigate } from 'react-router-dom';
+import { toast } from '@/components/ui/use-toast';
 
 interface HistoryItem {
   id: string;
@@ -17,12 +21,16 @@ interface HistoryItem {
   generated_by_ai?: boolean;
   status?: string;
   priority?: string;
+  data: TestPlan | TestCase | TestExecution;
 }
 
 export const History = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -46,7 +54,8 @@ export const History = () => {
           description: plan.description,
           created_at: plan.created_at,
           updated_at: plan.updated_at,
-          generated_by_ai: plan.generated_by_ai
+          generated_by_ai: plan.generated_by_ai,
+          data: plan
         })),
         ...cases.map(testCase => ({
           id: testCase.id,
@@ -56,7 +65,8 @@ export const History = () => {
           created_at: testCase.created_at,
           updated_at: testCase.updated_at,
           generated_by_ai: testCase.generated_by_ai,
-          priority: testCase.priority
+          priority: testCase.priority,
+          data: testCase
         })),
         ...executions.map(execution => ({
           id: execution.id,
@@ -65,7 +75,8 @@ export const History = () => {
           description: execution.notes,
           created_at: execution.executed_at,
           updated_at: execution.executed_at,
-          status: execution.status
+          status: execution.status,
+          data: execution
         }))
       ];
 
@@ -74,8 +85,67 @@ export const History = () => {
       setItems(historyItems);
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar histórico",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewDetails = (item: HistoryItem) => {
+    setSelectedItem(item);
+    setShowDetailModal(true);
+  };
+
+  const handleEdit = (item: HistoryItem) => {
+    // Redirecionar para a página apropriada com modo de edição
+    if (item.type === 'plan') {
+      navigate(`/plans?edit=${item.id}`);
+    } else if (item.type === 'case') {
+      navigate(`/cases?edit=${item.id}`);
+    } else {
+      navigate(`/executions?edit=${item.id}`);
+    }
+  };
+
+  const handleDelete = async (id: string, type: 'plan' | 'case' | 'execution') => {
+    try {
+      if (type === 'plan') {
+        await deleteTestPlan(id);
+      } else if (type === 'case') {
+        await deleteTestCase(id);
+      } else {
+        await deleteTestExecution(id);
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `${type === 'plan' ? 'Plano' : type === 'case' ? 'Caso' : 'Execução'} excluído com sucesso!`
+      });
+
+      // Recarregar dados
+      loadHistoryData();
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir item",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCardClick = (item: HistoryItem) => {
+    // Redirecionar para a página específica do item
+    if (item.type === 'plan') {
+      navigate('/plans');
+    } else if (item.type === 'case') {
+      navigate('/cases');
+    } else {
+      navigate('/executions');
     }
   };
 
@@ -140,7 +210,10 @@ export const History = () => {
             <Card key={`${item.type}-${item.id}`} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div 
+                    className="flex items-center gap-3 cursor-pointer flex-1"
+                    onClick={() => handleCardClick(item)}
+                  >
                     {getTypeIcon(item.type)}
                     <div>
                       <CardTitle className="text-lg">{item.title}</CardTitle>
@@ -166,6 +239,40 @@ export const History = () => {
                         {item.priority}
                       </Badge>
                     )}
+                    
+                    {/* Botões de ação */}
+                    <div className="flex gap-1">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(item);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(item);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(item.id, item.type);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -194,6 +301,26 @@ export const History = () => {
           </p>
         </div>
       )}
+
+      {/* Modal de detalhes */}
+      <DetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        item={selectedItem?.data || null}
+        type={selectedItem?.type || 'plan'}
+        onEdit={() => {
+          if (selectedItem) {
+            handleEdit(selectedItem);
+            setShowDetailModal(false);
+          }
+        }}
+        onDelete={(id) => {
+          if (selectedItem) {
+            handleDelete(id, selectedItem.type);
+            setShowDetailModal(false);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -19,6 +19,7 @@ serve(async (req) => {
 
   try {
     if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY não configurada');
       throw new Error('GEMINI_API_KEY não configurada');
     }
 
@@ -109,7 +110,7 @@ serve(async (req) => {
 
     console.log('Enviando prompt para Gemini:', prompt);
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -124,17 +125,24 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Erro na API do Gemini: ${response.status} - ${errorText}`);
       throw new Error(`Erro na API do Gemini: ${response.status}`);
     }
 
     const data = await response.json();
     console.log('Resposta do Gemini:', data);
 
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('Nenhuma resposta gerada pelo Gemini');
+    }
+
     const generatedText = data.candidates[0].content.parts[0].text;
     
     // Limpar e extrair JSON da resposta
     const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error('Texto gerado sem JSON válido:', generatedText);
       throw new Error('Formato de resposta inválido do Gemini');
     }
 
