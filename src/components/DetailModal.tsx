@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, Calendar, User, Sparkles } from 'lucide-react';
 import { TestPlan, TestCase, TestExecution } from '@/types';
+import { ExportDropdown } from './ExportDropdown';
 
 interface DetailModalProps {
   isOpen: boolean;
@@ -229,25 +230,29 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
           )}
 
           {/* Botões de ação */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={onClose}>
-              Fechar
-            </Button>
-            {onEdit && (
-              <Button variant="outline" onClick={() => onEdit(item)}>
-                <Edit className="h-4 w-4 mr-1" />
-                Editar
+          <div className="flex justify-between pt-4 border-t">
+            <ExportDropdown item={item} type={type} />
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Fechar
               </Button>
-            )}
-            {onDelete && (
-              <Button 
-                variant={confirmDelete ? "destructive" : "outline"}
-                onClick={handleDelete}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                {confirmDelete ? 'Confirmar Exclusão' : 'Excluir'}
-              </Button>
-            )}
+              {onEdit && (
+                <Button variant="outline" onClick={() => onEdit(item)}>
+                  <Edit className="h-4 w-4 mr-1" />
+                  Editar
+                </Button>
+              )}
+              {onDelete && (
+                <Button 
+                  variant={confirmDelete ? "destructive" : "outline"}
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  {confirmDelete ? 'Confirmar Exclusão' : 'Excluir'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +10,7 @@ import { TestCase } from '@/types';
 import { TestCaseForm } from '@/components/forms/TestCaseForm';
 import { DetailModal } from '@/components/DetailModal';
 import { StandardButton } from '@/components/StandardButton';
+import { ViewModeToggle } from '@/components/ViewModeToggle';
 
 export const TestCases = () => {
   const { user } = useAuth();
@@ -74,24 +74,7 @@ export const TestCases = () => {
           <p className="text-gray-600 dark:text-gray-400">Gerencie seus casos de teste</p>
         </div>
         <div className="flex gap-2 items-center">
-          <div className="flex border rounded-md">
-            <StandardButton
-              variant={viewMode === 'cards' ? 'default' : 'outline'}
-              size="sm"
-              icon={Grid}
-              onClick={() => setViewMode('cards')}
-            >
-              Cards
-            </StandardButton>
-            <StandardButton
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              icon={List}
-              onClick={() => setViewMode('list')}
-            >
-              Lista
-            </StandardButton>
-          </div>
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
               <StandardButton icon={Plus}>
@@ -112,43 +95,48 @@ export const TestCases = () => {
         viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {cases.map((testCase) => (
-              <Card key={testCase.id} className="hover:shadow-md transition-shadow h-fit">
-                <CardHeader className="pb-4">
+              <Card key={testCase.id} className="hover:shadow-md transition-shadow h-[280px] flex flex-col">
+                <CardHeader className="pb-3 flex-shrink-0">
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg line-clamp-2">{testCase.title}</CardTitle>
+                    <CardTitle className="text-base line-clamp-2 leading-tight">{testCase.title}</CardTitle>
                     {testCase.generated_by_ai && (
-                      <Badge variant="secondary" className="flex items-center gap-1 ml-2">
+                      <Badge variant="secondary" className="flex items-center gap-1 ml-2 flex-shrink-0">
                         <Sparkles className="h-3 w-3" />
                         IA
                       </Badge>
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-                    {testCase.description}
-                  </p>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Badge className={getPriorityColor(testCase.priority)}>
-                      {testCase.priority}
-                    </Badge>
-                    <Badge variant="outline">
-                      {testCase.type}
-                    </Badge>
+                <CardContent className="pt-0 flex-1 flex flex-col justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-3">
+                      {testCase.description}
+                    </p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge className={getPriorityColor(testCase.priority)}>
+                        {testCase.priority}
+                      </Badge>
+                      <Badge variant="outline">
+                        {testCase.type}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="space-y-3 flex-shrink-0">
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Calendar className="h-3 w-3" />
                       {testCase.updated_at.toLocaleDateString()}
                     </div>
-                    <StandardButton 
-                      variant="outline" 
-                      size="sm"
-                      icon={Eye}
-                      onClick={() => handleViewDetails(testCase)}
-                    >
-                      Ver Detalhes
-                    </StandardButton>
+                    <div className="flex gap-2">
+                      <StandardButton 
+                        variant="outline" 
+                        size="sm"
+                        icon={Eye}
+                        onClick={() => handleViewDetails(testCase)}
+                        className="flex-1"
+                      >
+                        Ver Detalhes
+                      </StandardButton>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

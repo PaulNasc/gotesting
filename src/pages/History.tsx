@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +30,7 @@ export const History = () => {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -108,6 +108,17 @@ export const History = () => {
       navigate(`/cases?edit=${item.id}`);
     } else {
       navigate(`/executions?edit=${item.id}`);
+    }
+  };
+
+  const handleDeleteClick = (id: string) => {
+    if (confirmDeleteId === id) {
+      // Confirmar exclusão
+      handleDelete(id, items.find(item => item.id === id)?.type as 'plan' | 'case' | 'execution');
+      setConfirmDeleteId(null);
+    } else {
+      // Marcar para confirmação
+      setConfirmDeleteId(id);
     }
   };
 
@@ -264,10 +275,10 @@ export const History = () => {
                       </Button>
                       <Button 
                         size="sm" 
-                        variant="outline"
+                        variant={confirmDeleteId === item.id ? "destructive" : "outline"}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(item.id, item.type);
+                          handleDeleteClick(item.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />

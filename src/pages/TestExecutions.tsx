@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +10,7 @@ import { TestExecution } from '@/types';
 import { TestExecutionForm } from '@/components/forms/TestExecutionForm';
 import { DetailModal } from '@/components/DetailModal';
 import { StandardButton } from '@/components/StandardButton';
+import { ViewModeToggle } from '@/components/ViewModeToggle';
 
 export const TestExecutions = () => {
   const { user } = useAuth();
@@ -84,24 +84,7 @@ export const TestExecutions = () => {
           <p className="text-gray-600 dark:text-gray-400">Acompanhe suas execuções de teste</p>
         </div>
         <div className="flex gap-2 items-center">
-          <div className="flex border rounded-md">
-            <StandardButton
-              variant={viewMode === 'cards' ? 'default' : 'outline'}
-              size="sm"
-              icon={Grid}
-              onClick={() => setViewMode('cards')}
-            >
-              Cards
-            </StandardButton>
-            <StandardButton
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              icon={List}
-              onClick={() => setViewMode('list')}
-            >
-              Lista
-            </StandardButton>
-          </div>
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
               <StandardButton icon={Plus}>
@@ -122,17 +105,17 @@ export const TestExecutions = () => {
         viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {executions.map((execution) => (
-              <Card key={execution.id} className="hover:shadow-md transition-shadow h-fit">
-                <CardHeader className="pb-4">
+              <Card key={execution.id} className="hover:shadow-md transition-shadow h-[280px] flex flex-col">
+                <CardHeader className="pb-3 flex-shrink-0">
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">Execução #{execution.id.slice(0, 8)}</CardTitle>
+                    <CardTitle className="text-base">Execução #{execution.id.slice(0, 8)}</CardTitle>
                     <Badge className={getStatusColor(execution.status)}>
                       {getStatusLabel(execution.status)}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-2 mb-4">
+                <CardContent className="pt-0 flex-1 flex flex-col justify-between">
+                  <div className="flex-1 space-y-2">
                     <p className="text-sm">
                       <span className="font-medium">Executado por:</span> {execution.executed_by}
                     </p>
@@ -142,19 +125,22 @@ export const TestExecutions = () => {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="space-y-3 flex-shrink-0">
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Calendar className="h-3 w-3" />
                       {execution.executed_at.toLocaleDateString()}
                     </div>
-                    <StandardButton 
-                      variant="outline" 
-                      size="sm"
-                      icon={Eye}
-                      onClick={() => handleViewDetails(execution)}
-                    >
-                      Ver Detalhes
-                    </StandardButton>
+                    <div className="flex gap-2">
+                      <StandardButton 
+                        variant="outline" 
+                        size="sm"
+                        icon={Eye}
+                        onClick={() => handleViewDetails(execution)}
+                        className="flex-1"
+                      >
+                        Ver Detalhes
+                      </StandardButton>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
