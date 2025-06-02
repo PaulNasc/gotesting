@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +17,17 @@ interface DetailModalProps {
 
 export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: DetailModalProps) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Reset confirmDelete when modal is closed or item changes
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmDelete(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    setConfirmDelete(false);
+  }, [item]);
 
   if (!item) return null;
 
@@ -39,6 +49,11 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
     } else {
       setConfirmDelete(true);
     }
+  };
+
+  const handleClose = () => {
+    setConfirmDelete(false);
+    onClose();
   };
 
   const getTypeLabel = () => {
@@ -94,7 +109,7 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -229,12 +244,31 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
             </div>
           )}
 
+          {/* Vínculos section */}
+          {(type === 'case' || type === 'execution') && (
+            <div>
+              <h3 className="font-medium mb-2">Vínculos</h3>
+              <div className="space-y-2">
+                {'plan_id' in item && item.plan_id && (
+                  <div className="text-sm">
+                    <span className="font-medium">Plano de Teste:</span> {item.plan_id}
+                  </div>
+                )}
+                {type === 'execution' && 'case_id' in item && item.case_id && (
+                  <div className="text-sm">
+                    <span className="font-medium">Caso de Teste:</span> {item.case_id}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Botões de ação */}
           <div className="flex justify-between pt-4 border-t">
             <ExportDropdown item={item} type={type} />
             
             <div className="flex gap-2">
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={handleClose}>
                 Fechar
               </Button>
               {onEdit && (

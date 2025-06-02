@@ -5,21 +5,24 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, FileText, Calendar, Sparkles, Grid, List, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { getTestPlans } from '@/services/supabaseService';
+import { getTestPlans, deleteTestPlan } from '@/services/supabaseService';
 import { TestPlan } from '@/types';
 import { TestPlanForm } from '@/components/forms/TestPlanForm';
 import { DetailModal } from '@/components/DetailModal';
 import { StandardButton } from '@/components/StandardButton';
 import { ViewModeToggle } from '@/components/ViewModeToggle';
+import { useToast } from '@/hooks/use-toast';
 
 export const TestPlans = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [plans, setPlans] = useState<TestPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<TestPlan | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [editingPlan, setEditingPlan] = useState<TestPlan | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -41,11 +44,36 @@ export const TestPlans = () => {
   const handlePlanCreated = (plan: TestPlan) => {
     setPlans(prev => [plan, ...prev]);
     setShowForm(false);
+    setEditingPlan(null);
   };
 
   const handleViewDetails = (plan: TestPlan) => {
     setSelectedPlan(plan);
     setShowDetailModal(true);
+  };
+
+  const handleEdit = (plan: TestPlan) => {
+    setEditingPlan(plan);
+    setShowForm(true);
+    setShowDetailModal(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTestPlan(id);
+      setPlans(prev => prev.filter(p => p.id !== id));
+      toast({
+        title: "Sucesso",
+        description: "Plano excluído com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao excluir plano:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir plano",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -65,7 +93,10 @@ export const TestPlans = () => {
         </div>
         <div className="flex gap-2 items-center">
           <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
-          <Dialog open={showForm} onOpenChange={setShowForm}>
+          <Dialog open={showForm} onOpenChange={(open) => {
+            setShowForm(open);
+            if (!open) setEditingPlan(null);
+          }}>
             <DialogTrigger asChild>
               <StandardButton icon={Plus}>
                 Novo Plano
@@ -73,8 +104,12 @@ export const TestPlans = () => {
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <TestPlanForm 
+                initialData={editingPlan}
                 onSuccess={handlePlanCreated}
-                onCancel={() => setShowForm(false)}
+                onCancel={() => {
+                  setShowForm(false);
+                  setEditingPlan(null);
+                }}
               />
             </DialogContent>
           </Dialog>
@@ -180,14 +215,8 @@ export const TestPlans = () => {
         onClose={() => setShowDetailModal(false)}
         item={selectedPlan}
         type="plan"
-        onEdit={() => {
-          // TODO: Implementar edição
-          setShowDetailModal(false);
-        }}
-        onDelete={() => {
-          // TODO: Implementar exclusão
-          setShowDetailModal(false);
-        }}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
     </div>
   );
