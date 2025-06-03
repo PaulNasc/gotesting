@@ -15,6 +15,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
@@ -22,6 +23,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id: string
+          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
@@ -29,6 +31,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Relationships: []
@@ -191,6 +194,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          can_manage_cases: boolean
+          can_manage_executions: boolean
+          can_manage_plans: boolean
+          can_manage_users: boolean
+          can_use_ai: boolean
+          can_view_reports: boolean
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_manage_cases?: boolean
+          can_manage_executions?: boolean
+          can_manage_plans?: boolean
+          can_manage_users?: boolean
+          can_use_ai?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_manage_cases?: boolean
+          can_manage_executions?: boolean
+          can_manage_plans?: boolean
+          can_manage_users?: boolean
+          can_use_ai?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -199,7 +241,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_role: "master" | "admin" | "manager" | "tester"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -314,6 +356,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["master", "admin", "manager", "tester"],
+    },
   },
 } as const
