@@ -1,4 +1,3 @@
-
 export interface User {
   uid: string;
   email?: string;
@@ -67,4 +66,44 @@ export interface Theme {
     surface: string;
     text: string;
   };
+}
+
+// Model Control Panel types
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: 'gemini' | 'openai' | 'anthropic' | 'other';
+  description: string;
+  version: string;
+  capabilities: string[];
+  defaultForTask?: AIModelTask;
+  apiKey?: string;
+  active: boolean;
+  settings: Record<string, any>;
+}
+
+export type AIModelTask = 
+  | 'test-plan-generation'
+  | 'test-case-generation' 
+  | 'bug-detection'
+  | 'code-analysis'
+  | 'general-completion';
+
+export interface AIPromptTemplate {
+  id: string;
+  name: string;
+  task: AIModelTask;
+  template: string;
+  description: string;
+  parameters: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  active: boolean;
+}
+
+export interface AIModelConfig {
+  models: AIModel[];
+  promptTemplates: AIPromptTemplate[];
+  defaultModel: string;
+  tasks: Record<AIModelTask, string>; // maps task to default model id
 }

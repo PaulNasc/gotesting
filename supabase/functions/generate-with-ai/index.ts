@@ -1,41 +1,32 @@
+// NOTA: Este arquivo foi descontinuado
+// A funcionalidade de geração de testes com IA foi movida para o cliente
+// usando a API Gemini diretamente através do serviço ModelControlService.ts
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+/**
+ * Este arquivo foi mantido apenas para referência.
+ * A implementação atual está no frontend utilizando as integrações diretas com o Gemini.
+ * 
+ * Para usar esta funcionalidade, consulte:
+ * - src/services/modelControlService.ts
+ * - src/integrations/gemini/client.ts
+ * - src/components/forms/AIGeneratorForm.tsx
+ */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Exemplo de como a funcionalidade é implementada no cliente:
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    if (!geminiApiKey) {
-      console.error('GEMINI_API_KEY não configurada');
-      throw new Error('GEMINI_API_KEY não configurada');
-    }
-
-    const { type, description, context, requirements, userId, caseId, planId } = await req.json();
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    let prompt = '';
-    
-    if (type === 'plan') {
-      prompt = `
+/*
+// Função para gerar plano de teste
+const generateTestPlan = async (variables: {
+  description: string;
+  context?: string;
+  requirements?: string;
+}): Promise<any> => {
+  const prompt = `
         Crie um plano de teste específico e direto em português brasileiro para:
         
-        Descrição: ${description}
-        ${context ? `Contexto: ${context}` : ''}
-        ${requirements ? `Requisitos: ${requirements}` : ''}
+    Descrição: ${variables.description}
+    ${variables.context ? `Contexto: ${variables.context}` : ''}
+    ${variables.requirements ? `Requisitos: ${variables.requirements}` : ''}
         
         INSTRUÇÕES:
         - Seja ESPECÍFICO e DIRETO
@@ -56,13 +47,24 @@ serve(async (req) => {
           "risks": "riscos específicos identificados"
         }
       `;
-    } else if (type === 'case') {
-      prompt = `
+  
+  return await generateStructuredContent(prompt);
+};
+
+// Função para gerar caso de teste
+const generateTestCase = async (variables: {
+  description: string;
+  context?: string;
+  requirements?: string;
+  testPlan?: any;
+}): Promise<any> => {
+  const prompt = `
         Crie um caso de teste específico e direto em português brasileiro para:
         
-        Descrição: ${description}
-        ${context ? `Contexto: ${context}` : ''}
-        ${requirements ? `Requisitos: ${requirements}` : ''}
+    Descrição: ${variables.description}
+    ${variables.context ? `Contexto: ${variables.context}` : ''}
+    ${variables.requirements ? `Requisitos: ${variables.requirements}` : ''}
+    ${variables.testPlan ? `Plano de Teste: ${variables.testPlan.title}` : ''}
         
         INSTRUÇÕES:
         - Seja ESPECÍFICO e DIRETO
@@ -88,27 +90,26 @@ serve(async (req) => {
           "type": "functional"
         }
       `;
-    } else if (type === 'execution') {
-      // Buscar dados do caso de teste para contexto
-      const { data: testCase } = await supabase
-        .from('test_cases')
-        .select('*')
-        .eq('id', caseId)
-        .single();
+  
+  return await generateStructuredContent(prompt);
+};
 
-      if (!testCase) {
-        throw new Error('Caso de teste não encontrado');
-      }
-
-      prompt = `
+// Função para gerar execução de teste
+const generateTestExecution = async (variables: {
+  description: string;
+  context?: string;
+  testCase: any;
+  testPlan: any;
+}): Promise<any> => {
+  const prompt = `
         Gere uma execução de teste realística e específica em português brasileiro para:
         
-        Caso de Teste: ${testCase.title}
-        Descrição: ${testCase.description}
-        Passos: ${JSON.stringify(testCase.steps)}
+    Caso de Teste: ${variables.testCase.title}
+    Descrição: ${variables.testCase.description}
+    Passos: ${JSON.stringify(variables.testCase.steps)}
         
-        Contexto da execução: ${description}
-        ${context ? `Observações: ${context}` : ''}
+    Contexto da execução: ${variables.description}
+    ${variables.context ? `Observações: ${variables.context}` : ''}
         
         INSTRUÇÕES:
         - Simule uma execução realística
@@ -123,112 +124,7 @@ serve(async (req) => {
           "executed_by": "Testador IA"
         }
       `;
-    }
-
-    console.log('Enviando prompt para Gemini:', prompt.substring(0, 300) + '...');
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.2,
-          topK: 20,
-          topP: 0.8,
-          maxOutputTokens: 2048,
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Erro na API do Gemini: ${response.status} - ${errorText}`);
-      throw new Error(`Erro na API do Gemini: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('Resposta do Gemini:', data);
-
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('Nenhuma resposta gerada pelo Gemini');
-    }
-
-    const generatedText = data.candidates[0].content.parts[0].text;
-    
-    // Limpar e extrair JSON da resposta
-    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('Texto gerado sem JSON válido:', generatedText);
-      throw new Error('Formato de resposta inválido do Gemini');
-    }
-
-    const generatedData = JSON.parse(jsonMatch[0]);
-    console.log('Dados gerados:', generatedData);
-
-    // Salvar no banco de dados
-    let result;
-    if (type === 'plan') {
-      const { data: plan, error } = await supabase
-        .from('test_plans')
-        .insert([{
-          ...generatedData,
-          user_id: userId,
-          generated_by_ai: true
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      result = plan;
-    } else if (type === 'case') {
-      const { data: testCase, error } = await supabase
-        .from('test_cases')
-        .insert([{
-          ...generatedData,
-          plan_id: planId || null,
-          user_id: userId,
-          generated_by_ai: true
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      result = testCase;
-    } else if (type === 'execution') {
-      const { data: execution, error } = await supabase
-        .from('test_executions')
-        .insert([{
-          ...generatedData,
-          case_id: caseId,
-          plan_id: planId,
-          user_id: userId
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      result = execution;
-    }
-
-    return new Response(JSON.stringify({ success: true, data: result }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error) {
-    console.error('Erro na função:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: 'Verifique se a chave da API do Gemini está configurada corretamente'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
+  
+  return await generateStructuredContent(prompt);
+};
+*/

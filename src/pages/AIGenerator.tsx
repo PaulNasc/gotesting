@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -125,30 +124,6 @@ export const AIGenerator = () => {
             Use inteligência artificial para gerar planos, casos e execuções de teste automaticamente
           </p>
         </div>
-        
-        <Card className="p-4 min-w-[300px]">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              <Label className="text-sm font-medium">Configurações</Label>
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="batch-mode" className="text-sm">
-                Geração em Lote de Planos
-              </Label>
-              <Switch
-                id="batch-mode"
-                checked={settings.batchGenerationEnabled}
-                onCheckedChange={(checked) => updateSettings({ batchGenerationEnabled: checked })}
-              />
-            </div>
-            {settings.batchGenerationEnabled && (
-              <p className="text-xs text-gray-500">
-                Permite gerar múltiplos planos a partir de um documento
-              </p>
-            )}
-          </div>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">

@@ -16,6 +16,7 @@ export type Database = {
           email: string | null
           id: string
           updated_at: string
+          role: 'master' | 'admin' | 'manager' | 'tester'
         }
         Insert: {
           created_at?: string
@@ -23,6 +24,7 @@ export type Database = {
           email?: string | null
           id: string
           updated_at?: string
+          role?: 'master' | 'admin' | 'manager' | 'tester'
         }
         Update: {
           created_at?: string
@@ -30,6 +32,7 @@ export type Database = {
           email?: string | null
           id?: string
           updated_at?: string
+          role?: 'master' | 'admin' | 'manager' | 'tester'
         }
         Relationships: []
       }
@@ -190,6 +193,86 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_settings: {
+        Row: {
+          id: string
+          user_id: string
+          key: string
+          value: any
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          key: string
+          value: any
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          key?: string
+          value?: any
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_permissions: {
+        Row: {
+          id: string
+          user_id: string
+          can_manage_users: boolean
+          can_manage_plans: boolean
+          can_manage_cases: boolean
+          can_manage_executions: boolean
+          can_view_reports: boolean
+          can_use_ai: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          can_manage_users?: boolean
+          can_manage_plans?: boolean
+          can_manage_cases?: boolean
+          can_manage_executions?: boolean
+          can_view_reports?: boolean
+          can_use_ai?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          can_manage_users?: boolean
+          can_manage_plans?: boolean
+          can_manage_cases?: boolean
+          can_manage_executions?: boolean
+          can_view_reports?: boolean
+          can_use_ai?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

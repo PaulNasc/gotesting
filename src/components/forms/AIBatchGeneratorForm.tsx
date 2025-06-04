@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Sparkles, Loader2, Upload, FileText } from 'lucide-react';
+import { generateStructuredContent } from '@/integrations/gemini/client';
+import * as ModelControlService from '@/services/modelControlService';
 
 interface AIBatchGeneratorFormProps {
   onSuccess?: (data: any) => void;
@@ -42,28 +43,109 @@ export const AIBatchGeneratorForm = ({ onSuccess }: AIBatchGeneratorFormProps) =
     }
   };
 
+  const generateBatchPlans = async (
+    documentContent: string, 
+    context?: string, 
+    userId?: string
+  ) => {
+    const prompt = `
+      Analise o seguinte documento e identifique AUTONOMAMENTE diferentes funcionalidades, sistemas ou módulos que necessitam de planos de teste específicos.
+
+      DOCUMENTO:
+      ${documentContent}
+
+      ${context ? `CONTEXTO ADICIONAL: ${context}` : ''}
+
+      INSTRUÇÕES IMPORTANTES:
+      - Analise o documento e identifique automaticamente as diferentes funcionalidades/sistemas
+      - Para cada funcionalidade identificada, crie um plano de teste específico e focado
+      - Seja DIRETO e ESPECÍFICO, evite contexto desnecessário
+      - Cada plano deve ser independente e testável
+      - Gere apenas o essencial baseado nas informações fornecidas
+
+      Retorne um JSON válido com esta estrutura EXATA:
+      {
+        "plans": [
+          {
+            "title": "título específico do plano",
+            "description": "descrição direta e objetiva",
+            "objective": "objetivo claro do teste",
+            "scope": "escopo específico a ser testado",
+            "approach": "abordagem de teste direta",
+            "criteria": "critérios de aceite objetivos",
+            "resources": "recursos necessários",
+            "schedule": "estimativa de cronograma",
+            "risks": "principais riscos identificados"
+          }
+        ]
+      }
+
+      IMPORTANTE: Gere quantos planos forem necessários baseado na análise do documento, mas seja específico e direto.
+    `;
+
+    try {
+      // Usar o ModelControlService para executar a tarefa
+      const generatedData = await ModelControlService.executeTask(
+        'general-completion',
+        { prompt },
+      );
+      
+      if (!generatedData.plans || !Array.isArray(generatedData.plans)) {
+        throw new Error('Formato de resposta inválido: plans array esperado');
+      }
+
+      // Adicionar IDs únicos para cada plano
+      return generatedData.plans.map((plan: any) => ({
+        ...plan,
+        id: crypto.randomUUID(),
+        user_id: userId,
+        generated_by_ai: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      }));
+    } catch (error) {
+      console.error('Erro na função de geração em lote:', error);
+      throw new Error(`Erro na geração em lote: ${error.message}`);
+    }
+  };
+
+  const savePlansToSupabase = async (plans: any[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('test_plans')
+        .insert(plans);
+        
+      if (error) throw error;
+      
+      return {
+        success: true, 
+        plans,
+        count: plans.length
+      };
+    } catch (error) {
+      console.error('Erro ao salvar planos em lote:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !documentContent.trim()) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-batch-plans', {
-        body: {
-          documentContent,
-          context,
-          userId: user.id
-        }
-      });
-
-      if (error) throw error;
+      // Gerar planos em lote usando a API do Gemini
+      const plans = await generateBatchPlans(documentContent, context, user.id);
+      
+      // Salvar planos gerados no Supabase
+      const result = await savePlansToSupabase(plans);
 
       toast({
         title: "Sucesso",
-        description: "Análise do documento concluída! Planos gerados com IA."
+        description: `Análise do documento concluída! ${plans.length} planos gerados com IA.`
       });
 
-      onSuccess?.(data);
+      onSuccess?.(result);
     } catch (error) {
       console.error('Erro ao gerar planos em lote:', error);
       toast({

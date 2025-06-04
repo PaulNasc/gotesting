@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -44,6 +43,11 @@ export const AuthPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoLogin = () => {
+    setEmail("demo@testmaster.ai");
+    setPassword("demo123");
   };
 
   return (
@@ -124,6 +128,17 @@ export const AuthPage = () => {
               className="text-sm"
             >
               {isLogin ? 'Não tem uma conta? Criar conta' : 'Já tem uma conta? Fazer login'}
+            </Button>
+          </div>
+          
+          <div className="text-center">
+            <Button
+              variant="outline"
+              onClick={handleDemoLogin}
+              className="text-sm w-full"
+              type="button"
+            >
+              Usar conta de demonstração
             </Button>
           </div>
         </CardContent>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,8 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Sparkles, Loader2 } from 'lucide-react';
-import { getTestPlans, getTestCases } from '@/services/supabaseService';
-import { TestPlan, TestCase } from '@/types';
+import { getTestPlans, getTestCases, createTestPlan, createTestCase, createTestExecution } from '@/services/supabaseService';
+import { TestPlan, TestCase, AIModelTask } from '@/types';
+import * as ModelControlService from '@/services/modelControlService';
 
 interface AIGeneratorFormProps {
   onSuccess?: (data: any) => void;
@@ -61,39 +61,92 @@ export const AIGeneratorForm = ({ onSuccess, initialType = 'plan' }: AIGenerator
     }
   };
 
+  const generateWithAI = async () => {
+    if (!user) return null;
+
+    const taskType: AIModelTask = 
+      formData.type === 'plan' ? 'test-plan-generation' : 
+      formData.type === 'case' ? 'test-case-generation' : 
+      'general-completion';
+
+    const variables: any = {
+      description: formData.description,
+      context: formData.context,
+      requirements: formData.requirements,
+    };
+
+    if (formData.type === 'execution') {
+      // Buscar detalhes do caso e plano selecionados
+      const selectedCase = cases.find(c => c.id === formData.caseId);
+      const selectedPlan = plans.find(p => p.id === formData.planId);
+      
+      if (!selectedCase || !selectedPlan) {
+        throw new Error('Caso ou plano de teste não encontrado');
+      }
+      
+      variables.testCase = selectedCase;
+      variables.testPlan = selectedPlan;
+    } else if (formData.type === 'case' && formData.planId) {
+      const selectedPlan = plans.find(p => p.id === formData.planId);
+      if (selectedPlan) {
+        variables.testPlan = selectedPlan;
+      }
+    }
+
+    try {
+      // Usar ModelControlService para gerar o conteúdo com AI
+      const result = await ModelControlService.executeTask(taskType, variables);
+      
+      if (formData.type === 'plan') {
+        // Criar o plano de teste no Supabase
+        const newPlan = await createTestPlan({
+          ...result,
+          user_id: user.id,
+          generated_by_ai: true
+        });
+        return { ...newPlan, type: 'plan' };
+      } 
+      else if (formData.type === 'case') {
+        // Criar o caso de teste no Supabase
+        const newCase = await createTestCase({
+          ...result,
+          plan_id: formData.planId || null,
+          user_id: user.id,
+          generated_by_ai: true
+        });
+        return { ...newCase, type: 'case' };
+      } 
+      else if (formData.type === 'execution') {
+        // Criar a execução de teste no Supabase
+        const newExecution = await createTestExecution({
+          ...result,
+          plan_id: formData.planId,
+          case_id: formData.caseId,
+          user_id: user.id,
+          executed_by: user.id
+        });
+        return { ...newExecution, type: 'execution' };
+      }
+    } catch (error) {
+      console.error('Erro ao gerar com IA:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setLoading(true);
     try {
-      const requestBody: any = {
-        type: formData.type,
-        description: formData.description,
-        context: formData.context,
-        requirements: formData.requirements,
-        userId: user.id
-      };
-
-      if (formData.type === 'execution') {
-        requestBody.caseId = formData.caseId;
-        requestBody.planId = formData.planId;
-      } else if (formData.type === 'case' && formData.planId) {
-        requestBody.planId = formData.planId;
-      }
-
-      const { data, error } = await supabase.functions.invoke('generate-with-ai', {
-        body: requestBody
-      });
-
-      if (error) throw error;
+      const result = await generateWithAI();
 
       toast({
         title: "Sucesso",
         description: `${formData.type === 'plan' ? 'Plano' : formData.type === 'case' ? 'Caso' : 'Execução'} de teste gerado com IA!`
       });
 
-      onSuccess?.(data);
+      onSuccess?.(result);
     } catch (error) {
       console.error('Erro ao gerar com IA:', error);
       toast({

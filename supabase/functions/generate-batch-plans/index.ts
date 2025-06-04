@@ -1,32 +1,24 @@
+// NOTA: Este arquivo foi descontinuado
+// A funcionalidade de geração em lote de planos de teste foi movida para o cliente
+// usando a API Gemini diretamente através do serviço ModelControlService.ts
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+/**
+ * Este arquivo foi mantido apenas para referência.
+ * A implementação atual está no frontend utilizando as integrações diretas com o Gemini.
+ * 
+ * Para usar esta funcionalidade, consulte:
+ * - src/services/modelControlService.ts
+ * - src/integrations/gemini/client.ts
+ */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Exemplo de como a funcionalidade é implementada no cliente:
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    if (!geminiApiKey) {
-      console.error('GEMINI_API_KEY não configurada');
-      throw new Error('GEMINI_API_KEY não configurada');
-    }
-
-    const { documentContent, context, userId } = await req.json();
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
+/*
+export async function generateBatchPlans(
+  documentContent: string, 
+  context?: string, 
+  userId?: string
+): Promise<any[]> {
     const prompt = `
       Analise o seguinte documento e identifique AUTONOMAMENTE diferentes funcionalidades, sistemas ou módulos que necessitam de planos de teste específicos.
 
@@ -62,81 +54,29 @@ serve(async (req) => {
       IMPORTANTE: Gere quantos planos forem necessários baseado na análise do documento, mas seja específico e direto.
     `;
 
-    console.log('Enviando prompt para Gemini (batch generation):', prompt.substring(0, 500) + '...');
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.3,
-          topK: 40,
-          topP: 0.8,
-          maxOutputTokens: 8192,
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Erro na API do Gemini: ${response.status} - ${errorText}`);
-      throw new Error(`Erro na API do Gemini: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('Resposta do Gemini (batch):', data);
-
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('Nenhuma resposta gerada pelo Gemini');
-    }
-
-    const generatedText = data.candidates[0].content.parts[0].text;
-    
-    // Limpar e extrair JSON da resposta
-    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('Texto gerado sem JSON válido:', generatedText);
-      throw new Error('Formato de resposta inválido do Gemini');
-    }
-
-    const generatedData = JSON.parse(jsonMatch[0]);
-    console.log('Dados gerados (batch):', generatedData);
+  try {
+    // Usar a função de generateStructuredContent da integração com o Gemini
+    const generatedData = await generateStructuredContent<{plans: any[]}>(prompt);
 
     if (!generatedData.plans || !Array.isArray(generatedData.plans)) {
       throw new Error('Formato de resposta inválido: plans array esperado');
     }
 
     // Adicionar IDs únicos para cada plano
-    const plansWithIds = generatedData.plans.map((plan: any) => ({
+    const plansWithIds = generatedData.plans.map((plan) => ({
       ...plan,
       id: crypto.randomUUID(),
       user_id: userId,
-      generated_by_ai: true
+      generated_by_ai: true,
+      created_at: new Date(),
+      updated_at: new Date()
     }));
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      plans: plansWithIds,
-      count: plansWithIds.length 
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return plansWithIds;
 
   } catch (error) {
     console.error('Erro na função de geração em lote:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: 'Verifique se a chave da API do Gemini está configurada corretamente'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    throw new Error(`Erro na geração em lote: ${error.message}`);
   }
-});
+}
+*/
