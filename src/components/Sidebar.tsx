@@ -11,8 +11,10 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CheckSquare
 } from 'lucide-react';
+import KrigzisLogo from '@/components/branding/KrigzisLogo';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -21,6 +23,7 @@ const navigation = [
   { name: 'Planos de Teste', href: '/plans', icon: FileText, requiredPermission: 'can_manage_plans' },
   { name: 'Casos de Teste', href: '/cases', icon: TestTube, requiredPermission: 'can_manage_cases' },
   { name: 'Execuções', href: '/executions', icon: PlayCircle, requiredPermission: 'can_manage_executions' },
+  { name: 'To-Do List', href: '/todo', icon: CheckSquare, requiredPermission: 'can_access_todo' },
   { name: 'Gerador IA', href: '/ai-generator', icon: Sparkles, requiredPermission: 'can_use_ai' },
   { name: 'Relatórios', href: '/reports', icon: BarChart3, requiredPermission: 'can_view_reports' },
   { name: 'Histórico', href: '/history', icon: HistoryIcon, requiredPermission: null },
@@ -92,9 +95,12 @@ export const Sidebar = () => {
             isExpanded ? "justify-center" : "justify-center"
           )}>
             {isExpanded ? (
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">TestMaster AI</h1>
+              <div className="flex items-center gap-2">
+                <KrigzisLogo size={24} className="h-6 w-6" />
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Krigzis web</h1>
+              </div>
             ) : (
-              <span className="text-xl font-bold text-gray-900 dark:text-white">TM</span>
+              <KrigzisLogo size={24} className="h-6 w-6" />
             )}
           </div>
           
@@ -126,11 +132,11 @@ export const Sidebar = () => {
           </nav>
           
           {isExpanded && (
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Geração inteligente de testes
-              </p>
-            </div>
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Geração inteligente de testes
+            </p>
+          </div>
           )}
         </div>
       </div>

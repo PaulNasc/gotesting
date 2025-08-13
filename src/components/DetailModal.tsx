@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, Calendar, User, Sparkles } from 'lucide-react';
@@ -121,6 +121,9 @@ export const DetailModal = ({ isOpen, onClose, item, type, onEdit, onDelete }: D
               </Badge>
             )}
           </DialogTitle>
+          <DialogDescription>
+            Visualize os detalhes completos do {type === 'plan' ? 'plano' : type === 'case' ? 'caso' : 'execução'} de teste
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

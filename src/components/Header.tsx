@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Moon, Sun, Settings, User, LogOut, Shield } from 'lucide-react';
+import { Moon, Sun, Settings, User, LogOut, Shield, Info } from 'lucide-react';
+import KrigzisLogo from '@/components/branding/KrigzisLogo';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -16,7 +17,7 @@ import { SettingsModal } from '@/components/SettingsModal';
 
 export const Header = () => {
   const { mode, toggleMode } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const { role } = usePermissions();
   const [showSettings, setShowSettings] = useState(false);
 
@@ -33,9 +34,12 @@ export const Header = () => {
       <header className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between px-6 py-4 h-16">
           <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white hidden md:block">
-              TestMaster AI
-            </h1>
+            <div className="flex items-center gap-2">
+              <KrigzisLogo size={24} className="h-6 w-6" />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white hidden md:block">
+                Krigzis web
+              </h1>
+            </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 hidden lg:block">
               Geração inteligente de testes
             </p>
@@ -77,7 +81,12 @@ export const Header = () => {
                   <Settings className="mr-2 h-4 w-4" />
                   Configurações
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={logout}>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => window.location.href = '/about'}>
+                  <Info className="mr-2 h-4 w-4" />
+                  Sobre
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={signOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sair
                 </DropdownMenuItem>

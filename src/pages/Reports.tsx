@@ -27,6 +27,62 @@ import { useAuth } from '@/hooks/useAuth';
 import { getTestPlans, getTestCases, getTestExecutions } from '@/services/supabaseService';
 import { TestPlan, TestCase, TestExecution } from '@/types';
 import { StandardButton } from '@/components/StandardButton';
+import { useToast } from '@/hooks/use-toast';
+
+// Estilos CSS personalizados para line-clamp e animações
+const reportCardStyles = `
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .report-card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
+  .report-icon-bg-purple-50 { background-color: rgb(250 245 255); }
+  .report-icon-bg-orange-50 { background-color: rgb(255 251 235); }
+  .report-icon-bg-blue-50 { background-color: rgb(239 246 255); }
+  .report-icon-bg-green-50 { background-color: rgb(240 253 244); }
+  .report-icon-bg-teal-50 { background-color: rgb(240 253 250); }
+  .report-icon-bg-indigo-50 { background-color: rgb(238 242 255); }
+  .report-icon-bg-emerald-50 { background-color: rgb(236 253 245); }
+  .report-icon-bg-gray-50 { background-color: rgb(249 250 251); }
+  .report-icon-bg-amber-50 { background-color: rgb(255 251 235); }
+  .report-icon-bg-red-50 { background-color: rgb(254 242 242); }
+  
+  .report-icon-bg-purple-100 { background-color: rgb(237 233 254); }
+  .report-icon-bg-orange-100 { background-color: rgb(254 215 170); }
+  .report-icon-bg-blue-100 { background-color: rgb(219 234 254); }
+  .report-icon-bg-green-100 { background-color: rgb(220 252 231); }
+  .report-icon-bg-teal-100 { background-color: rgb(204 251 241); }
+  .report-icon-bg-indigo-100 { background-color: rgb(224 231 255); }
+  .report-icon-bg-emerald-100 { background-color: rgb(209 250 229); }
+  .report-icon-bg-gray-100 { background-color: rgb(243 244 246); }
+  .report-icon-bg-amber-100 { background-color: rgb(254 215 170); }
+  .report-icon-bg-red-100 { background-color: rgb(254 226 226); }
+`;
+
+// Adicionar estilos ao head do documento
+if (typeof document !== 'undefined') {
+  const existingStyle = document.getElementById('report-card-styles');
+  if (!existingStyle) {
+    const style = document.createElement('style');
+    style.id = 'report-card-styles';
+    style.textContent = reportCardStyles;
+    document.head.appendChild(style);
+  }
+}
 
 // Definição dos tipos de relatório
 const reportTypes = [
@@ -104,6 +160,7 @@ const reportTypes = [
 
 export const Reports = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<TestPlan[]>([]);
   const [cases, setCases] = useState<TestCase[]>([]);
@@ -160,9 +217,97 @@ export const Reports = () => {
   const mediumCases = cases.filter(c => c.priority === 'medium').length;
   const lowCases = cases.filter(c => c.priority === 'low').length;
 
-  const exportReport = (format: 'pdf' | 'excel' | 'csv') => {
-    // Implementar exportação de relatório
-    console.log(`Exportando relatório em formato ${format} para: ${selectedReport}`);
+  const exportReport = async (format: 'pdf' | 'excel' | 'csv' | 'json') => {
+    try {
+      // Importar dinâmicamente as funções de exportação
+      const { exportReportData, exportSupabaseData, exportToPDF } = await import('../utils/export');
+      
+      // Obter dados específicos baseados no tipo de relatório
+      let reportData: any = null;
+      let reportTitle = '';
+      
+      switch (selectedReport) {
+        case 'execution-status':
+          reportTitle = 'Status de Execução';
+          reportData = executions.filter(exec => {
+            if (selectedStatus !== 'all' && exec.status !== selectedStatus) return false;
+            if (dateFrom && new Date(exec.executed_at) < new Date(dateFrom)) return false;
+            if (dateTo && new Date(exec.executed_at) > new Date(dateTo)) return false;
+            return true;
+          });
+          break;
+          
+        case 'test-priority':
+          reportTitle = 'Prioridade de Testes';
+          reportData = cases.filter(testCase => {
+            if (selectedPriority !== 'all' && testCase.priority !== selectedPriority) return false;
+            if (dateFrom && new Date(testCase.created_at) < new Date(dateFrom)) return false;
+            if (dateTo && new Date(testCase.created_at) > new Date(dateTo)) return false;
+            return true;
+          });
+          break;
+          
+        case 'ai-generation':
+          reportTitle = 'Geração por IA';
+          reportData = {
+            planos: plans.filter(plan => plan.generated_by_ai),
+            casos: cases.filter(testCase => testCase.generated_by_ai),
+            estatisticas: {
+              totalPlanos: plans.length,
+              planosIA: plans.filter(plan => plan.generated_by_ai).length,
+              totalCasos: cases.length,
+              casosIA: cases.filter(testCase => testCase.generated_by_ai).length
+            }
+          };
+          break;
+          
+        case 'raw-data-export':
+          reportTitle = 'Dados Brutos';
+          switch (selectedType) {
+            case 'plans':
+              reportData = plans;
+              break;
+            case 'cases':
+              reportData = cases;
+              break;
+            case 'executions':
+              reportData = executions;
+              break;
+            default:
+              reportData = { plans, cases, executions };
+          }
+          break;
+          
+        default:
+          reportData = { plans, cases, executions };
+          reportTitle = 'Relatório Completo';
+      }
+      
+      if (format === 'pdf') {
+        // Marcar o conteúdo atual para exportação PDF
+        const mainContent = document.querySelector('main');
+        if (mainContent) {
+          mainContent.setAttribute('data-export-content', 'true');
+        }
+        exportToPDF(reportTitle);
+      } else {
+        exportReportData(selectedReport, reportData, format);
+      }
+      
+      // Mostrar toast de sucesso
+      toast({
+        title: "Exportação realizada",
+        description: `Relatório exportado em formato ${format.toUpperCase()}`,
+      });
+      
+    } catch (error: any) {
+      console.error('Erro na exportação:', error);
+      toast({
+        title: "Erro na exportação",
+        description: error.message || `Erro ao exportar relatório em formato ${format}`,
+        variant: "destructive",
+      });
+    }
   };
 
   // Renderiza os filtros específicos para cada tipo de relatório
@@ -408,48 +553,48 @@ export const Reports = () => {
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="text-center">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-3xl font-bold text-green-600">{passedExecutions}</CardTitle>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-2xl font-bold text-green-600">{passedExecutions}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <Badge className="bg-green-100 text-green-800">Aprovadas</Badge>
-                  <p className="mt-2 text-sm text-gray-500">
+                <CardContent className="pt-1">
+                  <Badge className="bg-green-100 text-green-800 text-xs">Aprovadas</Badge>
+                  <p className="mt-1 text-xs text-gray-500">
                     {totalExecutions > 0 ? Math.round((passedExecutions / totalExecutions) * 100) : 0}% do total
                   </p>
                 </CardContent>
               </Card>
               
               <Card className="text-center">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-3xl font-bold text-red-600">{failedExecutions}</CardTitle>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-2xl font-bold text-red-600">{failedExecutions}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <Badge className="bg-red-100 text-red-800">Reprovadas</Badge>
-                  <p className="mt-2 text-sm text-gray-500">
+                <CardContent className="pt-1">
+                  <Badge className="bg-red-100 text-red-800 text-xs">Reprovadas</Badge>
+                  <p className="mt-1 text-xs text-gray-500">
                     {totalExecutions > 0 ? Math.round((failedExecutions / totalExecutions) * 100) : 0}% do total
                   </p>
                 </CardContent>
               </Card>
               
               <Card className="text-center">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-3xl font-bold text-yellow-600">{blockedExecutions}</CardTitle>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-2xl font-bold text-yellow-600">{blockedExecutions}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <Badge className="bg-yellow-100 text-yellow-800">Bloqueadas</Badge>
-                  <p className="mt-2 text-sm text-gray-500">
+                <CardContent className="pt-1">
+                  <Badge className="bg-yellow-100 text-yellow-800 text-xs">Bloqueadas</Badge>
+                  <p className="mt-1 text-xs text-gray-500">
                     {totalExecutions > 0 ? Math.round((blockedExecutions / totalExecutions) * 100) : 0}% do total
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="text-center">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-3xl font-bold text-gray-600">{notTestedExecutions}</CardTitle>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-2xl font-bold text-gray-600">{notTestedExecutions}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <Badge className="bg-gray-100 text-gray-800">Não Testadas</Badge>
-                  <p className="mt-2 text-sm text-gray-500">
+                <CardContent className="pt-1">
+                  <Badge className="bg-gray-100 text-gray-800 text-xs">Não Testadas</Badge>
+                  <p className="mt-1 text-xs text-gray-500">
                     {totalExecutions > 0 ? Math.round((notTestedExecutions / totalExecutions) * 100) : 0}% do total
                   </p>
                 </CardContent>
@@ -1060,7 +1205,7 @@ export const Reports = () => {
           </div>
         );
 
-      case 'trend-analysis':
+      case 'trend-analysis': {
         // Agrupar execuções por mês
         const getMonthData = () => {
           const months: Record<string, any> = {};
@@ -1275,8 +1420,9 @@ export const Reports = () => {
             </Card>
           </div>
         );
+      }
 
-      case 'performance-metrics':
+      case 'performance-metrics': {
         // Como não temos execution_time no tipo TestExecution, vamos focar em outras métricas de performance
         const recentExecutions = executions.filter(e => {
           const daysDiff = Math.floor((new Date().getTime() - new Date(e.executed_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -1387,8 +1533,9 @@ export const Reports = () => {
             </Card>
           </div>
         );
+      }
 
-      case 'quality-metrics':
+      case 'quality-metrics': {
         const qualityScore = totalExecutions > 0 ? 
           ((passedExecutions / totalExecutions) * 100) : 0;
         const coverageScore = totalCases > 0 ? 
@@ -1504,8 +1651,9 @@ export const Reports = () => {
             </div>
           </div>
         );
+      }
 
-      case 'execution-details':
+      case 'execution-details': {
         return (
           <div className="space-y-8">
             <Card>
@@ -1586,8 +1734,9 @@ export const Reports = () => {
             </Card>
           </div>
         );
+      }
 
-      case 'failure-analysis':
+      case 'failure-analysis': {
         const failedExecutionsList = executions.filter(e => e.status === 'failed');
         const failuresByCase = failedExecutionsList.reduce((acc, exec) => {
           const caseId = exec.case_id;
@@ -1713,8 +1862,9 @@ export const Reports = () => {
             </Card>
           </div>
         );
+      }
 
-      case 'raw-data-export':
+      case 'raw-data-export': {
         return (
           <div className="space-y-8">
             <Card>
@@ -1725,14 +1875,14 @@ export const Reports = () => {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <Card className="text-center">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-2xl font-bold text-blue-600">
+                    <CardHeader className="pb-1">
+                      <CardTitle className="text-xl font-bold text-blue-600">
                         {totalPlans}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <Badge className="bg-blue-100 text-blue-800">Planos de Teste</Badge>
-                      <p className="mt-2 text-sm text-gray-500">Registros disponíveis</p>
+                    <CardContent className="pt-1">
+                      <Badge className="bg-blue-100 text-blue-800 text-xs">Planos de Teste</Badge>
+                      <p className="mt-1 text-xs text-gray-500">Registros disponíveis</p>
                     </CardContent>
                   </Card>
                   
@@ -1813,6 +1963,7 @@ export const Reports = () => {
             </Card>
           </div>
         );
+      }
 
       // Adicione outros relatórios conforme necessário
       default:
@@ -1836,19 +1987,15 @@ export const Reports = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Relatórios</h2>
-          <p className="text-gray-600 dark:text-gray-400">Análise detalhada dos seus dados de teste</p>
-        </div>
-        
-        {selectedReport && (
-          <div className="flex gap-2">
+    <div className="space-y-8">
+      {selectedReport && (
+        <div className="flex justify-end mb-6">
+          <div className="flex flex-wrap gap-3">
             <StandardButton 
               variant="outline" 
               icon={Download} 
               onClick={() => exportReport('pdf')}
+              className="transition-all duration-300 hover:scale-105"
             >
               Exportar PDF
             </StandardButton>
@@ -1856,44 +2003,48 @@ export const Reports = () => {
               variant="outline" 
               icon={Download} 
               onClick={() => exportReport('excel')}
+              className="transition-all duration-300 hover:scale-105"
             >
               Exportar Excel
             </StandardButton>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {!selectedReport ? (
-        // Visualização de seleção de relatório
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reportTypes.map(report => (
-            <Card 
-              key={report.id} 
-              className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
-              onClick={() => setSelectedReport(report.id)}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <report.icon className={`h-5 w-5 ${report.color}`} />
-                  {report.title}
-                </CardTitle>
-                <CardDescription>{report.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-center py-6">
-                <div className={`rounded-full p-4 ${report.color.replace('text-', 'bg-').replace('600', '100')}`}>
-                  <report.icon className={`h-8 w-8 ${report.color}`} />
-                </div>
-              </CardContent>
-              <CardFooter className="bg-gray-50 dark:bg-gray-800 px-6 py-3">
-                <Button variant="ghost" className="w-full">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Visualizar Relatório
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+        <div>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              Relatórios
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {reportTypes.map(report => (
+              <Card 
+                key={report.id} 
+                className="group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-gray-200 hover:border-blue-400 bg-white dark:bg-gray-800 dark:border-gray-700 dark:hover:border-blue-500"
+                onClick={() => setSelectedReport(report.id)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 transition-colors group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
+                      <report.icon className={`h-5 w-5 ${report.color} dark:text-gray-300`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm leading-tight line-clamp-2 mb-1">
+                        {report.title}
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                        {report.description}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      ) : (
+        ) : (
         // Visualização do relatório selecionado
         <div className="space-y-6">
           <div className="flex items-center justify-between">

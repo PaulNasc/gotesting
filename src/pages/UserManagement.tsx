@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions, UserRole } from '@/hooks/usePermissions';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,12 +23,13 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { UserCog, Shield, Users, Loader2, Search, UserPlus, Trash2 } from 'lucide-react';
+import { UserCog, Shield, Users, Loader2, Search, UserPlus, Trash2, ChevronDown, ChevronUp, Sparkles, FileText, ClipboardCheck, Play, BarChart3, Download, Eye, Home, Clock, Zap, Settings, CheckCircle, Crown } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
   DialogClose
@@ -35,7 +37,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown, ChevronUp, Sparkles, FileText, ClipboardCheck, Play } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +47,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+// Single-tenant flag: when true, bypass remote permissions/profiles and operate locally as master
+// Default to true if env is missing (safer default for uso particular)
+const SINGLE_TENANT = String((import.meta as any).env?.VITE_SINGLE_TENANT ?? 'true') === 'true';
 
 interface UserData extends User {
   profile?: {
@@ -59,6 +64,19 @@ interface UserData extends User {
     can_manage_executions: boolean;
     can_view_reports: boolean;
     can_use_ai: boolean;
+    can_access_model_control: boolean;
+    can_configure_ai_models: boolean;
+    can_test_ai_connections: boolean;
+    can_manage_ai_templates: boolean;
+    can_select_ai_models: boolean;
+    // Permissões do sistema To-Do
+    can_access_todo: boolean;
+    can_manage_todo_folders: boolean;
+    can_manage_todo_tasks: boolean;
+    can_manage_all_todos: boolean;
+    can_upload_attachments: boolean;
+    can_comment_tasks: boolean;
+    can_assign_tasks: boolean;
   };
 }
 
@@ -66,19 +84,23 @@ const roleLabels = {
   master: 'Master',
   admin: 'Administrador',
   manager: 'Gerente',
-  tester: 'Testador'
+  tester: 'Testador',
+  viewer: 'Visualizador'
 };
 
 const roleColors = {
   master: 'bg-purple-100 text-purple-800 border-purple-300',
   admin: 'bg-red-100 text-red-800 border-red-300',
   manager: 'bg-blue-100 text-blue-800 border-blue-300',
-  tester: 'bg-green-100 text-green-800 border-green-300'
+  tester: 'bg-green-100 text-green-800 border-green-300',
+  viewer: 'bg-gray-100 text-gray-800 border-gray-300'
 };
 
 export const UserManagement = () => {
-  const { role, isMaster } = usePermissions();
+  const { role, isMaster, updateUserToMaster, getDefaultPermissions } = usePermissions();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [hasError, setHasError] = useState(false);
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,56 +111,93 @@ export const UserManagement = () => {
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<UserRole>('tester');
+  const [inviteRole, setInviteRole] = useState<UserRole>('viewer');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [fixingMaster, setFixingMaster] = useState(false);
   
   // Form state for editing user
   const [editForm, setEditForm] = useState({
-    role: 'tester' as UserRole,
+    role: 'viewer' as UserRole,
     display_name: '',
     can_manage_users: false,
-    can_manage_plans: true,
-    can_manage_cases: true,
-    can_manage_executions: true,
-    can_view_reports: true,
-    can_use_ai: true,
+    can_manage_plans: false,
+    can_manage_cases: false,
+    can_manage_executions: false,
+    can_view_reports: false,
+    can_use_ai: false,
+    can_access_model_control: false,
+    can_configure_ai_models: false,
+    can_test_ai_connections: false,
+    can_manage_ai_templates: false,
+    can_select_ai_models: false,
+    // Permissões padrão do To-Do
+    can_access_todo: false,
+    can_manage_todo_folders: false,
+    can_manage_todo_tasks: false,
+    can_manage_all_todos: false,
+    can_upload_attachments: false,
+    can_comment_tasks: false,
+    can_assign_tasks: false,
   });
 
-  // Load users
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Get all users from Supabase Auth
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      if (SINGLE_TENANT) {
+        // No modo single-tenant, não buscamos no banco. Montamos um usuário local master.
+        const { data: authData } = await supabase.auth.getUser();
+        const current = authData?.user;
+        if (current) {
+          const masterPerms = getDefaultPermissions('master');
+          const localUser: UserData = {
+            id: current.id,
+            email: current.email || `user_${current.id.slice(0, 8)}@sistema.local`,
+            app_metadata: current.app_metadata as any,
+            user_metadata: current.user_metadata as any,
+            aud: 'authenticated',
+            created_at: current.created_at as any,
+            profile: {
+              display_name: (current.user_metadata as any)?.full_name || 'Master',
+              role: 'master'
+            },
+            permissions: masterPerms
+          };
+          setUsers([localUser]);
+        } else {
+          setUsers([]);
+        }
+        return;
+      }
       
-      if (authError) throw authError;
+      // Modo multi-tenant (padrão antigo): buscar perfis e permissões
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, role')
+        .order('display_name');
       
-      // Fetch profiles and permissions
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        setUsers([]);
+        return;
+      }
+      
       const usersWithDetails = await Promise.all(
-        authUsers.users.map(async (user) => {
-          // Get profile data
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('display_name, role')
-            .eq('id', user.id)
-            .single();
-            
-          // Get permissions
+        profiles.map(async (profile) => {
           const { data: permissionsData } = await supabase
             .from('user_permissions')
-            .select('can_manage_users, can_manage_plans, can_manage_cases, can_manage_executions, can_view_reports, can_use_ai')
-            .eq('user_id', user.id)
+            .select('can_manage_users, can_manage_plans, can_manage_cases, can_manage_executions, can_view_reports, can_use_ai, can_access_model_control, can_configure_ai_models, can_test_ai_connections, can_manage_ai_templates, can_select_ai_models, can_access_todo, can_manage_todo_folders, can_manage_todo_tasks, can_manage_all_todos, can_upload_attachments, can_comment_tasks, can_assign_tasks')
+            .eq('user_id', profile.id)
             .single();
             
           return {
-            ...user,
-            profile: profileData || { display_name: null, role: 'tester' },
+            id: profile.id,
+            email: `user_${profile.id.slice(0, 8)}@sistema.local`,
+            profile: {
+              display_name: profile.display_name,
+              role: profile.role as UserRole
+            },
             permissions: permissionsData || {
               can_manage_users: false,
               can_manage_plans: true,
@@ -146,23 +205,42 @@ export const UserManagement = () => {
               can_manage_executions: true,
               can_view_reports: true,
               can_use_ai: true,
+              can_access_model_control: false,
+              can_configure_ai_models: false,
+              can_test_ai_connections: false,
+              can_manage_ai_templates: false,
+              can_select_ai_models: true,
+              can_access_todo: true,
+              can_manage_todo_folders: false,
+              can_manage_todo_tasks: true,
+              can_manage_all_todos: false,
+              can_upload_attachments: false,
+              can_comment_tasks: true,
+              can_assign_tasks: false,
             }
-          };
+          } as UserData;
         })
       );
       
       setUsers(usersWithDetails);
     } catch (error) {
       console.error('Error fetching users:', error);
+      setHasError(true);
       toast({
         title: 'Erro',
-        description: 'Não foi possível carregar os usuários',
+        description: 'Não foi possível carregar os usuários. Funcionalidade limitada disponível.',
         variant: 'destructive'
       });
+      setUsers([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast, getDefaultPermissions]);
+
+  // Load users
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleEditUser = (user: UserData) => {
     setSelectedUser(user);
@@ -175,348 +253,165 @@ export const UserManagement = () => {
       can_manage_executions: user.permissions?.can_manage_executions || true,
       can_view_reports: user.permissions?.can_view_reports || true,
       can_use_ai: user.permissions?.can_use_ai || true,
+      can_access_model_control: user.permissions?.can_access_model_control || false,
+      can_configure_ai_models: user.permissions?.can_configure_ai_models || false,
+      can_test_ai_connections: user.permissions?.can_test_ai_connections || false,
+      can_manage_ai_templates: user.permissions?.can_manage_ai_templates || false,
+      can_select_ai_models: user.permissions?.can_select_ai_models || true,
+      // Permissões do To-Do
+      can_access_todo: user.permissions?.can_access_todo || true,
+      can_manage_todo_folders: user.permissions?.can_manage_todo_folders || false,
+      can_manage_todo_tasks: user.permissions?.can_manage_todo_tasks || true,
+      can_manage_all_todos: user.permissions?.can_manage_all_todos || false,
+      can_upload_attachments: user.permissions?.can_upload_attachments || false,
+      can_comment_tasks: user.permissions?.can_comment_tasks || true,
+      can_assign_tasks: user.permissions?.can_assign_tasks || false,
     });
     setIsEditModalOpen(true);
   };
 
-  const handleSaveUserChanges = async () => {
-    if (!selectedUser) return;
-    
+  // Restaurar usuário atual como master (local)
+  const handleFixUserToMaster = async () => {
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          display_name: editForm.display_name,
-          role: editForm.role,
-        })
-        .eq('id', selectedUser.id);
-        
-      if (profileError) throw profileError;
-      
-      // Update permissions
-      const { error: permissionsError } = await supabase
-        .from('user_permissions')
-        .upsert({
-          user_id: selectedUser.id,
-          can_manage_users: editForm.can_manage_users,
-          can_manage_plans: editForm.can_manage_plans,
-          can_manage_cases: editForm.can_manage_cases,
-          can_manage_executions: editForm.can_manage_executions,
-          can_view_reports: editForm.can_view_reports,
-          can_use_ai: editForm.can_use_ai,
-        });
-        
-      if (permissionsError) throw permissionsError;
-      
-      // Refresh users
-      await fetchUsers();
-      
-      // Close modal
-      setIsEditModalOpen(false);
-      setSelectedUser(null);
-      
-      toast({
-        title: 'Usuário atualizado',
-        description: 'As alterações foram salvas com sucesso',
-      });
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível atualizar o usuário',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleInviteUser = async () => {
-    if (!inviteEmail || !inviteEmail.includes('@')) {
-      toast({
-        title: 'Email inválido',
-        description: 'Por favor, insira um email válido',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
-    try {
-      setInviteLoading(true);
-      
-      // Send invite email
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail);
-      
-      if (error) throw error;
-      
-      // Set role for new user
-      if (data.user) {
-        await supabase
-          .from('profiles')
-          .update({ role: inviteRole })
-          .eq('id', data.user.id);
-          
-        // Set default permissions
-        await supabase
-          .from('user_permissions')
-          .insert({
-            user_id: data.user.id,
-            can_manage_users: inviteRole === 'admin' || inviteRole === 'master',
-            can_manage_plans: true,
-            can_manage_cases: true,
-            can_manage_executions: true,
-            can_view_reports: true,
-            can_use_ai: true,
-          });
+      setFixingMaster(true);
+      if (!user?.id) {
+        toast({ title: 'Usuário não autenticado', variant: 'destructive' });
+        return;
       }
-      
-      toast({
-        title: 'Convite enviado',
-        description: `Um email de convite foi enviado para ${inviteEmail}`,
-      });
-      
-      setInviteEmail('');
-      setInviteRole('tester');
-      setIsInviteModalOpen(false);
-      
-      // Refresh users
-      await fetchUsers();
-    } catch (error) {
-      console.error('Error inviting user:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível enviar o convite',
-        variant: 'destructive'
-      });
+      await updateUserToMaster(user.id);
+      toast({ title: 'Permissões atualizadas', description: 'Seu usuário foi restaurado como Master.' });
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Falha ao restaurar Master', variant: 'destructive' });
     } finally {
-      setInviteLoading(false);
+      setFixingMaster(false);
     }
   };
 
-  // Função para alterar o papel/role do usuário
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole as UserRole })
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
-      // Atualiza o state local
-      setUsers(prev => prev.map(user => {
-        if (user.id === userId && user.profile) {
-          return {
-            ...user,
-            profile: {
-              ...user.profile,
-              role: newRole as UserRole
-            }
-          };
-        }
-        return user;
-      }));
-      
-      // Atualiza as permissões padrão de acordo com o papel
-      await updateDefaultPermissionsByRole(userId, newRole as UserRole);
-      
-      toast({
-        title: 'Nível atualizado',
-        description: `O nível de acesso foi alterado para ${roleLabels[newRole as UserRole]}`,
-      });
-    } catch (error) {
-      console.error('Erro ao alterar o nível de acesso:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível alterar o nível de acesso',
-        variant: 'destructive'
-      });
-    }
-  };
-  
-  // Função para alterar permissões individuais
-  const handlePermissionChange = async (userId: string, permission: string, value: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('user_permissions')
-        .update({ [permission]: value })
-        .eq('user_id', userId);
-      
-      if (error) throw error;
-      
-      // Atualiza o state local
-      setUsers(prev => prev.map(user => {
-        if (user.id === userId && user.permissions) {
-          return {
-            ...user,
-            permissions: {
-              ...user.permissions,
-              [permission]: value
-            }
-          };
-        }
-        return user;
-      }));
-      
-      toast({
-        title: 'Permissão atualizada',
-        description: `A permissão foi ${value ? 'concedida' : 'revogada'} com sucesso`,
-      });
-    } catch (error) {
-      console.error('Erro ao alterar permissão:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível alterar a permissão',
-        variant: 'destructive'
-      });
-    }
-  };
-  
-  // Função para atualizar as permissões padrão por papel
-  const updateDefaultPermissionsByRole = async (userId: string, userRole: UserRole) => {
-    const defaultPermissions = {
-      master: {
-        can_manage_users: true,
-        can_manage_plans: true,
-        can_manage_cases: true,
-        can_manage_executions: true,
-        can_view_reports: true,
-        can_use_ai: true
-      },
-      admin: {
-        can_manage_users: true,
-        can_manage_plans: true,
-        can_manage_cases: true,
-        can_manage_executions: true,
-        can_view_reports: true,
-        can_use_ai: true
-      },
-      manager: {
-        can_manage_users: false,
-        can_manage_plans: true,
-        can_manage_cases: true,
-        can_manage_executions: true,
-        can_view_reports: true,
-        can_use_ai: true
-      },
-      tester: {
-        can_manage_users: false,
-        can_manage_plans: false,
-        can_manage_cases: true,
-        can_manage_executions: true,
-        can_view_reports: false,
-        can_use_ai: false
-      }
-    };
-    
-    try {
-      const { error } = await supabase
-        .from('user_permissions')
-        .update(defaultPermissions[userRole])
-        .eq('user_id', userId);
-      
-      if (error) throw error;
-      
-      // Atualiza o state local
-      setUsers(prev => prev.map(user => {
-        if (user.id === userId) {
-          return {
-            ...user,
-            permissions: {
-              ...user.permissions,
-              ...defaultPermissions[userRole]
-            }
-          };
-        }
-        return user;
-      }));
-    } catch (error) {
-      console.error('Erro ao atualizar permissões padrão:', error);
-    }
-  };
-
-  // Expande/colapsa detalhes do usuário
-  const toggleUserExpand = (userId: string) => {
-    setExpandedUser(prev => prev === userId ? null : userId);
-  };
-
-  // Verifica se o usuário atual pode alterar permissões do usuário especificado
-  const canManageUser = (userRole: string) => {
-    if (role === 'master') return true;
-    if (role === 'admin' && userRole !== 'master') return true;
-    return false;
-  };
-
-  // Filtra os usuários com base na busca
-  const filteredUsers = users.filter(user => 
-    user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.profile?.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Função para iniciar o processo de deleção de usuário
-  const handleDeleteUser = (user: UserData) => {
-    if (user.profile?.role === 'master') {
-      toast({
-        title: 'Ação não permitida',
-        description: 'Não é possível apagar um usuário Master',
-        variant: 'destructive'
-      });
+  // Envio de convite (desabilitado no single-tenant)
+  const handleInviteUser = async () => {
+    if (SINGLE_TENANT) {
+      toast({ title: 'Convites desabilitados', description: 'Modo single-tenant: convites estão desativados.' });
       return;
     }
-    
+    // Caso multi-tenant (não prioritário aqui)
+    toast({ title: 'Não implementado', description: 'Fluxo de convite não implementado para multi-tenant.' });
+  };
+
+  // Pode gerenciar conforme papel atual
+  const canManageUser = (targetRole: string) => {
+    // Em single-tenant, Master sempre pode
+    if (SINGLE_TENANT) return true;
+    // Em multi-tenant, master/admin podem gerenciar
+    return role === 'master' || role === 'admin';
+  };
+
+  // Expand/collapse
+  const toggleUserExpand = (id: string) => {
+    setExpandedUser(prev => (prev === id ? null : id));
+  };
+
+  // Alterar papel de usuário
+  const handleRoleChange = async (id: string, newRole: string) => {
+    if (SINGLE_TENANT) {
+      if (newRole !== 'master') {
+        toast({ title: 'Papel fixo', description: 'No modo single-tenant o papel é sempre Master.' });
+      }
+      // Mantém como master no estado local
+      setUsers(prev => prev.map(u => (u.id === id ? {
+        ...u,
+        profile: { display_name: u.profile?.display_name || '', role: 'master' as UserRole },
+        permissions: getDefaultPermissions('master')
+      } : u)));
+      return;
+    }
+    // Multi-tenant: fora do escopo atual
+    toast({ title: 'Alteração de papel', description: 'Atualização de papel no backend não implementada neste fluxo.' });
+  };
+
+  // Alterar permissão de usuário
+  const handlePermissionChange = async (id: string, permission: string, value: boolean) => {
+    if (SINGLE_TENANT) {
+      setUsers(prev => prev.map(u => (u.id === id ? {
+        ...u,
+        permissions: { ...u.permissions, [permission]: value } as UserData['permissions']
+      } : u)));
+      if (selectedUser?.id === id) {
+        setEditForm(prev => ({ ...prev, [permission]: value }));
+      }
+      return;
+    }
+    // Multi-tenant: fora do escopo atual
+    toast({ title: 'Alteração de permissão', description: 'Atualização de permissão no backend não implementada neste fluxo.' });
+  };
+
+  // Deleção de usuário
+  const handleDeleteUser = (user: UserData) => {
     setUserToDelete(user);
     setIsDeleteModalOpen(true);
   };
 
-  // Função para confirmar e executar a deleção do usuário
   const confirmDeleteUser = async () => {
-    if (!userToDelete || !isMaster()) return;
-    
-    try {
-      setDeleteLoading(true);
-      
-      // Primeiro, remover dados das tabelas relacionadas
-      await supabase
-        .from('user_permissions')
-        .delete()
-        .eq('user_id', userToDelete.id);
-        
-      await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userToDelete.id);
-      
-      // Por último, remover o usuário do Auth
-      const { error } = await supabase.auth.admin.deleteUser(userToDelete.id);
-      
-      if (error) throw error;
-      
-      // Atualizar a lista de usuários
-      await fetchUsers();
-      
-      toast({
-        title: 'Usuário removido',
-        description: `O usuário ${userToDelete.email} foi removido do sistema`,
-      });
-      
+    if (!userToDelete) return;
+    if (SINGLE_TENANT) {
+      toast({ title: 'Ação desabilitada', description: 'Não é possível remover usuários no modo single-tenant.' });
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
-    } catch (error) {
-      console.error('Erro ao remover usuário:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível remover o usuário',
-        variant: 'destructive'
-      });
-    } finally {
-      setDeleteLoading(false);
+      return;
     }
+    // Multi-tenant: fora do escopo atual
+    toast({ title: 'Não implementado', description: 'Remoção de usuário no backend não implementada.' });
+    setIsDeleteModalOpen(false);
+    setUserToDelete(null);
   };
+
+  // Lista filtrada por busca
+  const filteredUsers = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(u =>
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.profile?.display_name || '').toLowerCase().includes(q)
+    );
+  }, [users, searchQuery]);
+
+  // Se ocorreu erro ao carregar usuários, mostra mensagem amigável
+  if (hasError) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Erro no Sistema</h2>
+          <p className="mb-4">Houve um problema ao carregar o gerenciamento de usuários.</p>
+          <Button onClick={() => window.location.reload()}>
+            Recarregar Página
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Se ainda está carregando as permissões, mostra loading
+  if (!role) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Verificando permissões...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Se não tem permissão, redireciona
   if (role !== 'master' && role !== 'admin') {
     return (
       <PermissionGuard requiredPermission="can_manage_users">
-        <div>Você precisa de permissão para acessar esta página</div>
+        <div className="container mx-auto py-6">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">Acesso Restrito</h2>
+            <p>Você precisa de permissão para acessar esta página</p>
+          </div>
+        </div>
       </PermissionGuard>
     );
   }
@@ -534,61 +429,89 @@ export const UserManagement = () => {
           </p>
         </div>
         
-        <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Convidar Usuário
+        <div className="flex gap-2">
+          {/* Botão para corrigir usuário master */}
+          {role !== 'master' && (
+            <Button 
+              variant="outline" 
+              onClick={handleFixUserToMaster}
+              disabled={fixingMaster}
+              className="border-purple-200 text-purple-700 hover:bg-purple-50"
+            >
+              {fixingMaster ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Corrigindo...
+                </>
+              ) : (
+                <>
+                  <Crown className="h-4 w-4 mr-2" />
+                  Restaurar Master
+                </>
+              )}
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Convidar Novo Usuário</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  placeholder="email@exemplo.com" 
-                  value={inviteEmail} 
-                  onChange={(e) => setInviteEmail(e.target.value)} 
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="role">Nível de Acesso</Label>
-                <Select value={inviteRole} onValueChange={(value: UserRole) => setInviteRole(value)}>
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Selecione o nível" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {role === 'master' && (
-                      <SelectItem value="admin">Administrador</SelectItem>
-                    )}
-                    <SelectItem value="manager">Gerente</SelectItem>
-                    <SelectItem value="tester">Testador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Button 
-                className="w-full" 
-                onClick={handleInviteUser}
-                disabled={inviteLoading}
-              >
-                {inviteLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  'Enviar Convite'
-                )}
+          )}
+          
+          <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Convidar Usuário
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Convidar Novo Usuário</DialogTitle>
+                <DialogDescription>
+                  Envie um convite para um novo usuário se juntar ao sistema
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input 
+                    id="email" 
+                    placeholder="email@exemplo.com" 
+                    value={inviteEmail} 
+                    onChange={(e) => setInviteEmail(e.target.value)} 
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="role">Nível de Acesso</Label>
+                  <Select value={inviteRole} onValueChange={(value: UserRole) => setInviteRole(value)}>
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Selecione o nível" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {role === 'master' && (
+                        <SelectItem value="admin">Administrador</SelectItem>
+                      )}
+                      <SelectItem value="manager">Gerente</SelectItem>
+                      <SelectItem value="tester">Testador</SelectItem>
+                      <SelectItem value="viewer">Visualizador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button 
+                  className="w-full" 
+                  onClick={handleInviteUser}
+                  disabled={inviteLoading}
+                >
+                  {inviteLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar Convite'
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       
       <Tabs defaultValue="all">
@@ -598,6 +521,7 @@ export const UserManagement = () => {
           <TabsTrigger value="admin">Administradores</TabsTrigger>
           <TabsTrigger value="manager">Gerentes</TabsTrigger>
           <TabsTrigger value="tester">Testadores</TabsTrigger>
+          <TabsTrigger value="viewer">Visualizadores</TabsTrigger>
         </TabsList>
         
         <TabsContent value="all" className="p-0">
@@ -614,7 +538,7 @@ export const UserManagement = () => {
           />
         </TabsContent>
         
-        {['master', 'admin', 'manager', 'tester'].map(roleFilter => (
+        {['master', 'admin', 'manager', 'tester', 'viewer'].map(roleFilter => (
           <TabsContent key={roleFilter} value={roleFilter} className="p-0">
             <UserTable 
               users={filteredUsers.filter(u => u.profile?.role === roleFilter)} 
@@ -737,9 +661,10 @@ const UserTable = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map(user => (
-              <React.Fragment key={user.id}>
-                <TableRow>
+            {users.reduce<React.ReactNode[]>((acc, user) => {
+              acc.push(
+                
+                <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-medium">
@@ -767,6 +692,7 @@ const UserTable = ({
                           <SelectItem value="admin">Administrador</SelectItem>
                           <SelectItem value="manager">Gerente</SelectItem>
                           <SelectItem value="tester">Testador</SelectItem>
+                          <SelectItem value="viewer">Visualizador</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
@@ -828,10 +754,10 @@ const UserTable = ({
                     </div>
                   </TableCell>
                 </TableRow>
-                
-                {/* Linha expandida com detalhes */}
-                {expandedUser === user.id && (
-                  <TableRow>
+              );
+              if (expandedUser === user.id) {
+                acc.push(
+                  <TableRow key={user.id + '-expanded'}>
                     <TableCell colSpan={4} className="bg-gray-50 dark:bg-gray-900/20">
                       <div className="p-4 space-y-6">
                         <h4 className="font-medium flex items-center gap-2">
@@ -839,79 +765,382 @@ const UserTable = ({
                           Permissões do Usuário
                         </h4>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <UserCog className="h-4 w-4 text-blue-500" />
-                              <Label>Gerenciar Usuários</Label>
+                        <div className="space-y-4">
+                          {/* Seção: Administração do Sistema */}
+                          <div className="border rounded-lg">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-t-lg">
+                              <h5 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-blue-500" />
+                                Administração do Sistema
+                              </h5>
                             </div>
-                            <Switch 
-                              checked={user.permissions?.can_manage_users}
-                              onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_users', checked)}
-                              disabled={!canManageUser(user.profile?.role || 'tester')}
-                            />
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <UserCog className="h-4 w-4 text-blue-500" />
+                                  <Label>Gerenciar Usuários</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_users}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_users', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-emerald-500" />
-                              <Label>Gerenciar Planos</Label>
+
+                          {/* Seção: Gerenciamento de Testes */}
+                          <div className="border rounded-lg">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-t-lg">
+                              <h5 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                <ClipboardCheck className="h-4 w-4 text-green-500" />
+                                Gerenciamento de Testes
+                              </h5>
                             </div>
-                            <Switch 
-                              checked={user.permissions?.can_manage_plans}
-                              onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_plans', checked)}
-                              disabled={!canManageUser(user.profile?.role || 'tester')}
-                            />
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-emerald-500" />
+                                  <Label>Gerenciar Planos de Teste</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_plans}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_plans', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ClipboardCheck className="h-4 w-4 text-green-500" />
+                                  <Label>Gerenciar Casos de Teste</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_cases}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_cases', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Play className="h-4 w-4 text-indigo-500" />
+                                  <Label>Gerenciar Execuções de Teste</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_executions}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_executions', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <ClipboardCheck className="h-4 w-4 text-indigo-500" />
-                              <Label>Gerenciar Casos</Label>
+
+                          {/* Seção: Geração de Testes com IA */}
+                          <div className="border rounded-lg">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-t-lg">
+                              <h5 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 text-purple-500" />
+                                Geração de Testes com IA
+                              </h5>
                             </div>
-                            <Switch 
-                              checked={user.permissions?.can_manage_cases}
-                              onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_cases', checked)}
-                              disabled={!canManageUser(user.profile?.role || 'tester')}
-                            />
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4 text-purple-500" />
+                                  <Label>Utilizar Gerador de IA</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_use_ai}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_use_ai', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="h-4 w-4 text-blue-500" />
+                                  <Label>Selecionar Modelos IA</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_select_ai_models}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_select_ai_models', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-purple-400" />
+                                  <Label>Gerar Planos com IA</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_use_ai && user.permissions?.can_manage_plans}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      handlePermissionChange(user.id, 'can_use_ai', true);
+                                      handlePermissionChange(user.id, 'can_manage_plans', true);
+                                    }
+                                  }}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ClipboardCheck className="h-4 w-4 text-purple-400" />
+                                  <Label>Gerar Casos com IA</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_use_ai && user.permissions?.can_manage_cases}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      handlePermissionChange(user.id, 'can_use_ai', true);
+                                      handlePermissionChange(user.id, 'can_manage_cases', true);
+                                    }
+                                  }}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Play className="h-4 w-4 text-orange-500" />
-                              <Label>Gerenciar Execuções</Label>
+
+                          {/* Seção: Model Control Panel */}
+                          <div className="border rounded-lg">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-t-lg">
+                              <h5 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                <Settings className="h-4 w-4 text-orange-500" />
+                                Model Control Panel
+                              </h5>
                             </div>
-                            <Switch 
-                              checked={user.permissions?.can_manage_executions}
-                              onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_executions', checked)}
-                              disabled={!canManageUser(user.profile?.role || 'tester')}
-                            />
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Settings className="h-4 w-4 text-orange-500" />
+                                  <Label>Acessar MCP</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_access_model_control}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_access_model_control', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="h-4 w-4 text-orange-400" />
+                                  <Label>Configurar Modelos</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_configure_ai_models}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_configure_ai_models', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-orange-400" />
+                                  <Label>Testar Conexões IA</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_test_ai_connections}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_test_ai_connections', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-orange-400" />
+                                  <Label>Gerenciar Templates</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_ai_templates}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_ai_templates', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <svg className="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                              </svg>
-                              <Label>Visualizar Relatórios</Label>
+
+                          {/* Seção: Sistema To-Do List */}
+                          <div className="border rounded-lg">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-t-lg">
+                              <h5 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-emerald-500" />
+                                Sistema To-Do List
+                              </h5>
                             </div>
-                            <Switch 
-                              checked={user.permissions?.can_view_reports}
-                              onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_view_reports', checked)}
-                              disabled={!canManageUser(user.profile?.role || 'tester')}
-                            />
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                                  <Label>Acessar To-Do List</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_access_todo}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_access_todo', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-emerald-400" />
+                                  <Label>Gerenciar Pastas</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_todo_folders}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_todo_folders', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ClipboardCheck className="h-4 w-4 text-emerald-400" />
+                                  <Label>Gerenciar Tarefas</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_todo_tasks}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_todo_tasks', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Shield className="h-4 w-4 text-emerald-400" />
+                                  <Label>Gerenciar Todos os To-Dos</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_manage_all_todos}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_manage_all_todos', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-emerald-400" />
+                                  <Label>Upload de Anexos</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_upload_attachments}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_upload_attachments', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ClipboardCheck className="h-4 w-4 text-emerald-400" />
+                                  <Label>Comentar Tarefas</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_comment_tasks}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_comment_tasks', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Users className="h-4 w-4 text-emerald-400" />
+                                  <Label>Atribuir Tarefas</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_assign_tasks}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_assign_tasks', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="h-4 w-4 text-purple-500" />
-                              <Label>Utilizar Recursos de IA</Label>
+
+                          {/* Seção: Relatórios e Análises */}
+                          <div className="border rounded-lg">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-t-lg">
+                              <h5 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                <BarChart3 className="h-4 w-4 text-amber-500" />
+                                Relatórios e Análises
+                              </h5>
                             </div>
-                            <Switch 
-                              checked={user.permissions?.can_use_ai}
-                              onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_use_ai', checked)}
-                              disabled={!canManageUser(user.profile?.role || 'tester')}
-                            />
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <BarChart3 className="h-4 w-4 text-amber-500" />
+                                  <Label>Visualizar Relatórios</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_view_reports}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_view_reports', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Download className="h-4 w-4 text-teal-500" />
+                                  <Label>Exportar Dados</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_view_reports}
+                                  onCheckedChange={(checked) => handlePermissionChange(user.id, 'can_view_reports', checked)}
+                                  disabled={!canManageUser(user.profile?.role || 'tester')}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Eye className="h-4 w-4 text-blue-400" />
+                                  <Label>Relatórios Avançados</Label>
+                                </div>
+                                <Switch 
+                                  checked={user.permissions?.can_view_reports && (user.profile?.role === 'admin' || user.profile?.role === 'master')}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      handlePermissionChange(user.id, 'can_view_reports', true);
+                                    }
+                                  }}
+                                  disabled={!canManageUser(user.profile?.role || 'tester') || (user.profile?.role !== 'admin' && user.profile?.role !== 'master')}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Seção: Acesso Geral */}
+                          <div className="border rounded-lg">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-t-lg">
+                              <h5 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                <Home className="h-4 w-4 text-gray-500" />
+                                Acesso Geral
+                              </h5>
+                            </div>
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Home className="h-4 w-4 text-blue-500" />
+                                  <Label>Acessar Dashboard</Label>
+                                </div>
+                                <Switch 
+                                  checked={true}
+                                  disabled={true}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-gray-500" />
+                                  <Label>Visualizar Histórico</Label>
+                                </div>
+                                <Switch 
+                                  checked={true}
+                                  disabled={true}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                         
@@ -923,9 +1152,10 @@ const UserTable = ({
                       </div>
                     </TableCell>
                   </TableRow>
-                )}
-              </React.Fragment>
-            ))}
+                );
+              }
+              return acc;
+            }, [])}
           </TableBody>
         </Table>
       </CardContent>

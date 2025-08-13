@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -18,7 +18,13 @@ import {
   TestTube, 
   Settings, 
   Users, 
-  Sliders 
+  Sliders,
+  FileText,
+  PlayCircle,
+  BarChart3,
+  Download,
+  Home,
+  History as HistoryIcon
 } from 'lucide-react';
 import {
   Collapsible,
@@ -52,7 +58,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   
   // State for open/closed sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    parameters: true,
+    parameters: false,
     userControl: false,
   });
 
@@ -147,9 +153,12 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto pr-2">
         <DialogHeader>
           <DialogTitle>Configurações</DialogTitle>
+          <DialogDescription>
+            Configure as preferências do sistema e gerencie permissões
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -246,6 +255,21 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 Habilita a geração de múltiplos planos de teste a partir de um único documento.
                                 Útil para projetos com vários módulos ou funcionalidades.
                               </p>
+                              
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="batch-case-mode" className="text-sm">
+                                  Geração em Lote de Casos
+                                </Label>
+                                <Switch
+                                  id="batch-case-mode"
+                                  checked={aiSettings.batchCaseGenerationEnabled}
+                                  onCheckedChange={(checked) => updateAISettings({ batchCaseGenerationEnabled: checked })}
+                                />
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Habilita a geração de múltiplos casos de teste a partir de documentos.
+                                Aceita PDF, XLSX e outros formatos para análise detalhada.
+                              </p>
                             </div>
                           )}
                           
@@ -277,9 +301,14 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 <Label className="mb-3 block">Suas Permissões</Label>
                                 
                                 <div className="space-y-3 ml-2">
+                                  {/* Gerenciamento de Sistema */}
+                                  <div className="border-b pb-2 mb-3">
+                                    <h5 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sistema</h5>
+                                  </div>
+                                  
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      <UserCog className="h-4 w-4 text-gray-500" />
+                                      <UserCog className="h-4 w-4 text-blue-500" />
                                       <span className="text-sm">Gerenciar Usuários</span>
                                     </div>
                                     <Switch 
@@ -287,12 +316,37 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                       disabled={true}
                                     />
                                   </div>
+
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Settings className="h-4 w-4 text-orange-500" />
+                                      <span className="text-sm">Acessar Model Control</span>
+                                    </div>
+                                    <Switch 
+                                      checked={isAdmin ? true : role === 'master'} 
+                                      disabled={true}
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Shield className="h-4 w-4 text-purple-500" />
+                                      <span className="text-sm">Configurar Permissões</span>
+                                    </div>
+                                                                         <Switch 
+                                       checked={!!(role === 'master' || isAdmin)} 
+                                       disabled={true}
+                                     />
+                                  </div>
+                                  
+                                  {/* Gerenciamento de Testes */}
+                                  <div className="border-b pb-2 mb-3 mt-4">
+                                    <h5 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Testes</h5>
+                                  </div>
                                   
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                      </svg>
+                                      <FileText className="h-4 w-4 text-emerald-500" />
                                       <span className="text-sm">Gerenciar Planos de Teste</span>
                                     </div>
                                     <Switch 
@@ -303,7 +357,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                   
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      <TestTube className="h-4 w-4 text-gray-500" />
+                                      <TestTube className="h-4 w-4 text-green-500" />
                                       <span className="text-sm">Gerenciar Casos de Teste</span>
                                     </div>
                                     <Switch 
@@ -314,10 +368,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                   
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                      </svg>
+                                      <PlayCircle className="h-4 w-4 text-indigo-500" />
                                       <span className="text-sm">Gerenciar Execuções</span>
                                     </div>
                                     <Switch 
@@ -325,12 +376,37 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                       disabled={true}
                                     />
                                   </div>
+
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <HistoryIcon className="h-4 w-4 text-gray-500" />
+                                      <span className="text-sm">Acessar Histórico</span>
+                                    </div>
+                                    <Switch 
+                                      checked={true} 
+                                      disabled={true}
+                                    />
+                                  </div>
+                                  
+                                  {/* Recursos Avançados */}
+                                  <div className="border-b pb-2 mb-3 mt-4">
+                                    <h5 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Recursos Avançados</h5>
+                                  </div>
                                   
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                      </svg>
+                                      <Sparkles className="h-4 w-4 text-purple-500" />
+                                      <span className="text-sm">Utilizar Gerador IA</span>
+                                    </div>
+                                    <Switch 
+                                      checked={permissions.can_use_ai} 
+                                      disabled={true}
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <BarChart3 className="h-4 w-4 text-amber-500" />
                                       <span className="text-sm">Visualizar Relatórios</span>
                                     </div>
                                     <Switch 
@@ -338,14 +414,25 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                       disabled={true}
                                     />
                                   </div>
-                                  
+
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      <Sparkles className="h-4 w-4 text-gray-500" />
-                                      <span className="text-sm">Utilizar Recursos de IA</span>
+                                      <Download className="h-4 w-4 text-teal-500" />
+                                      <span className="text-sm">Exportar Dados</span>
                                     </div>
                                     <Switch 
-                                      checked={permissions.can_use_ai} 
+                                      checked={permissions.can_view_reports} 
+                                      disabled={true}
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Home className="h-4 w-4 text-blue-500" />
+                                      <span className="text-sm">Acessar Dashboard</span>
+                                    </div>
+                                    <Switch 
+                                      checked={true} 
                                       disabled={true}
                                     />
                                   </div>

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,28 +11,36 @@ import { CheckCircle, XCircle, RefreshCw, Eye, Sparkles } from 'lucide-react';
 import { TestPlan } from '@/types';
 import { StandardButton } from '@/components/StandardButton';
 
-interface GeneratedPlan {
+interface GeneratedItem {
   id: string;
   title: string;
   description: string;
-  objective: string;
-  scope: string;
-  approach: string;
-  criteria: string;
-  resources: string;
-  schedule: string;
-  risks: string;
+  objective?: string;
+  scope?: string;
+  approach?: string;
+  criteria?: string;
+  resources?: string;
+  schedule?: string;
+  risks?: string;
+  preconditions?: string;
+  expected_result?: string;
+  priority?: string;
+  type?: string;
+  steps?: Array<{
+    action: string;
+    expected_result: string;
+  }>;
   status: 'pending' | 'approved' | 'rejected' | 'regenerating';
 }
 
 interface AIBatchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  plans: GeneratedPlan[];
+  plans: GeneratedItem[];
   onApprove: (planId: string) => void;
   onReject: (planId: string) => void;
   onRegenerate: (planId: string, feedback: string) => void;
-  onViewDetails: (plan: GeneratedPlan) => void;
+  onViewDetails: (plan: GeneratedItem) => void;
 }
 
 export const AIBatchModal = ({ 
@@ -89,6 +97,9 @@ export const AIBatchModal = ({
               <Sparkles className="h-5 w-5" />
               Planos Gerados pela IA
             </DialogTitle>
+            <DialogDescription>
+              Revise e aprove os planos de teste gerados automaticamente pela IA
+            </DialogDescription>
           </DialogHeader>
 
           <ScrollArea className="h-[70vh]">
@@ -174,6 +185,9 @@ export const AIBatchModal = ({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Feedback para Regeneração</DialogTitle>
+            <DialogDescription>
+              Forneça detalhes específicos para que a IA possa melhorar o plano
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">

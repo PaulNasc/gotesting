@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 
 type ThemeMode = 'light' | 'dark';
@@ -25,31 +24,36 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
-  const [mode, setMode] = useState<ThemeMode>('light');
+  // Inicializar o tema a partir do localStorage, se existir
+  const getInitialMode = (): ThemeMode => {
+    if (typeof window !== 'undefined') {
+      const savedMode = localStorage.getItem('theme-mode') as ThemeMode;
+      if (savedMode === 'dark' || savedMode === 'light') return savedMode;
+    }
+    // fallback para dark
+    return 'dark';
+  };
+
+  const [mode, setMode] = useState<ThemeMode>(getInitialMode);
   const [customColors, setCustomColors] = useState<Record<string, string>>({});
 
+  // Atualizar o tema apenas se mudar
   useEffect(() => {
-    const savedMode = localStorage.getItem('theme-mode') as ThemeMode;
-    const savedColors = localStorage.getItem('custom-colors');
-    
-    if (savedMode) {
-      setMode(savedMode);
+    if (document.documentElement.className !== mode) {
+      document.documentElement.className = mode;
     }
-    
+    localStorage.setItem('theme-mode', mode);
+  }, [mode]);
+
+  useEffect(() => {
+    const savedColors = localStorage.getItem('custom-colors');
     if (savedColors) {
       setCustomColors(JSON.parse(savedColors));
     }
   }, []);
 
   useEffect(() => {
-    document.documentElement.className = mode;
-    localStorage.setItem('theme-mode', mode);
-  }, [mode]);
-
-  useEffect(() => {
     localStorage.setItem('custom-colors', JSON.stringify(customColors));
-    
-    // Apply custom colors to CSS variables
     Object.entries(customColors).forEach(([key, value]) => {
       document.documentElement.style.setProperty(`--color-${key}`, value);
     });

@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Zap } from 'lucide-react';
 import { getTestPlans, getTestCases, createTestPlan, createTestCase, createTestExecution } from '@/services/supabaseService';
-import { TestPlan, TestCase, AIModelTask } from '@/types';
+import { TestPlan, TestCase, AIModelTask, AIModel } from '@/types';
 import * as ModelControlService from '@/services/modelControlService';
 
 interface AIGeneratorFormProps {
@@ -22,18 +23,21 @@ export const AIGeneratorForm = ({ onSuccess, initialType = 'plan' }: AIGenerator
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState<TestPlan[]>([]);
   const [cases, setCases] = useState<TestCase[]>([]);
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [formData, setFormData] = useState({
     type: initialType,
     description: '',
     context: '',
     requirements: '',
     planId: '',
-    caseId: ''
+    caseId: '',
+    selectedModel: 'default'
   });
 
   useEffect(() => {
     if (user) {
       loadPlans();
+      loadAvailableModels();
     }
   }, [user]);
 
@@ -49,6 +53,18 @@ export const AIGeneratorForm = ({ onSuccess, initialType = 'plan' }: AIGenerator
       setPlans(data);
     } catch (error) {
       console.error('Erro ao carregar planos:', error);
+    }
+  };
+
+  const loadAvailableModels = () => {
+    try {
+      const config = ModelControlService.loadConfig();
+      const geminiModels = config.models.filter(model => 
+        model.provider === 'gemini' && model.active
+      );
+      setAvailableModels(geminiModels);
+    } catch (error) {
+      console.error('Erro ao carregar modelos:', error);
     }
   };
 
@@ -95,7 +111,11 @@ export const AIGeneratorForm = ({ onSuccess, initialType = 'plan' }: AIGenerator
 
     try {
       // Usar ModelControlService para gerar o conteúdo com AI
-      const result = await ModelControlService.executeTask(taskType, variables);
+      const result = await ModelControlService.executeTask(
+        taskType, 
+        variables, 
+        (formData.selectedModel === 'default' || !formData.selectedModel) ? undefined : formData.selectedModel
+      );
       
       if (formData.type === 'plan') {
         // Criar o plano de teste no Supabase
@@ -185,6 +205,42 @@ export const AIGeneratorForm = ({ onSuccess, initialType = 'plan' }: AIGenerator
                 <SelectItem value="execution">Execução de Teste</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="selectedModel" className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-blue-500" />
+              Modelo de IA
+              <Badge variant="outline" className="text-xs">Opcional</Badge>
+            </Label>
+            <Select value={formData.selectedModel} onValueChange={(value) => handleChange('selectedModel', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Usar modelo padrão para a tarefa" />
+              </SelectTrigger>
+              <SelectContent>
+                                      <SelectItem value="default">Modelo Padrão (Recomendado)</SelectItem>
+                {availableModels.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{model.name}</span>
+                      {model.version === '2.0-exp' && (
+                        <Badge variant="outline" className="text-purple-600 text-xs">Experimental</Badge>
+                      )}
+                      {model.capabilities.includes(
+                        formData.type === 'plan' ? 'test-plan-generation' : 
+                        formData.type === 'case' ? 'test-case-generation' : 
+                        'general-completion'
+                      ) && (
+                        <Badge variant="outline" className="text-green-600 text-xs">Otimizado</Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-gray-500 mt-1">
+              Escolha um modelo específico ou deixe em branco para usar o modelo otimizado para cada tarefa.
+            </p>
           </div>
 
           {formData.type === 'execution' && (

@@ -1,58 +1,58 @@
-# Welcome to your Lovable project
+# Krigzis web
 
-## Project info
+## Sobre o projeto
 
-**URL**: https://lovable.dev/projects/a414ed22-74ff-46b7-b04c-1708ec32da41
+Aplicação web single-tenant construída com React, TypeScript, Vite e Tailwind CSS. O projeto foi rebrandado para “Krigzis web”, com identidade visual padronizada (ícone “K” com bordas em gradiente) e documentação centralizada em `docs/`.
 
-## How can I edit this code?
+## Como editar o código (local)
 
-There are several ways of editing your application.
+Pré-requisitos:
+- Node.js e npm instalados (recomendado Node 18+). Você pode instalar via nvm: https://github.com/nvm-sh/nvm#installing-and-updating
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/a414ed22-74ff-46b7-b04c-1708ec32da41) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+Passos:
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# 1) Clone o repositório
+git clone <SEU_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2) Acesse a pasta do projeto
+cd <NOME_DO_PROJETO>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3) Instale as dependências
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4) Crie o arquivo de variáveis de ambiente (se necessário)
+copy .env.example .env.local  # Windows
+# Edite .env.local e defina:
+# VITE_SUPABASE_URL=...
+# VITE_SUPABASE_ANON_KEY=...
+
+# 5) Rode o servidor de desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Scripts úteis:
+- `npm run dev`: inicia o servidor de desenvolvimento (Vite)
+- `npm run build`: build de produção
+- `npm run preview`: preview do build
+- `npm run lint`: validação de lint
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+**Editar um arquivo diretamente no GitHub**
 
-**Use GitHub Codespaces**
+- Navegue até o(s) arquivo(s) desejado(s).
+- Clique no botão "Edit" (ícone de lápis) no canto superior direito da visualização do arquivo.
+- Faça suas alterações e confirme o commit.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+**Usar GitHub Codespaces**
 
-## What technologies are used for this project?
+- Acesse a página principal do seu repositório.
+- Clique no botão "Code" (botão verde) no canto superior direito.
+- Selecione a aba "Codespaces".
+- Clique em "New codespace" para iniciar um novo ambiente Codespace.
+- Edite os arquivos diretamente no Codespace e faça commit/push quando terminar.
 
-This project is built with:
+## Tecnologias utilizadas
+
+O projeto utiliza:
 
 - Vite
 - TypeScript
@@ -60,14 +60,29 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## Documentação do projeto
 
-Simply open [Lovable](https://lovable.dev/projects/a414ed22-74ff-46b7-b04c-1708ec32da41) and click on Share -> Publish.
+A documentação completa do projeto está organizada no diretório `docs/`. Consulte o índice:
 
-## Can I connect a custom domain to my Lovable project?
+- [docs/README.md](docs/README.md)
+- Tópicos:
+  - `docs/00-visao-geral`
+  - `docs/01-configuracao`
+  - `docs/02-banco-dados`
+  - `docs/03-diagnosticos-correcoes`
+  - `docs/04-planos-qualidade`
+  - `docs/05-ia-implementacoes`
+  - `docs/99-historico`
+  - `docs/anexos-ou-temp`
 
-Yes, you can!
+## Como publicar (Deploy)
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Você pode publicar o projeto em provedores como Vercel, Netlify ou Cloudflare Pages. Em geral:
+1. Crie o build: `npm run build`
+2. Configure a pasta de saída: `dist/`
+3. Defina as variáveis de ambiente no provedor (ex.: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+4. Aponte o comando de build para `npm run build`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Domínio personalizado
+
+Após publicar, você pode conectar um domínio próprio (ex.: `example.com`) diretamente nas configurações do provedor (Vercel/Netlify). Basta adicionar o domínio, configurar os registros DNS e aguardar a propagação.

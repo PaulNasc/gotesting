@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, PlayCircle, Calendar, Grid, List, Eye } from 'lucide-react';
+import { Plus, PlayCircle, Calendar, Grid, List, Eye, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestExecutions } from '@/services/supabaseService';
 import { TestExecution } from '@/types';
@@ -11,9 +11,12 @@ import { TestExecutionForm } from '@/components/forms/TestExecutionForm';
 import { DetailModal } from '@/components/DetailModal';
 import { StandardButton } from '@/components/StandardButton';
 import { ViewModeToggle } from '@/components/ViewModeToggle';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 export const TestExecutions = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [executions, setExecutions] = useState<TestExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -68,6 +71,56 @@ export const TestExecutions = () => {
     }
   };
 
+  const handleExport = async (format: 'csv' | 'excel' | 'json') => {
+    try {
+      const { exportSupabaseData } = await import('../utils/export');
+      await exportSupabaseData('execucoes_teste', executions, format, `execucoes_teste_${new Date().toISOString().split('T')[0]}`);
+      toast({
+        title: "Exportação realizada",
+        description: `Execuções exportadas em formato ${format.toUpperCase()}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro na exportação",
+        description: error.message || `Erro ao exportar execuções em formato ${format}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopy = async (format: 'txt' | 'md') => {
+    try {
+      const { copyTableData } = await import('../utils/export');
+      
+      // Converter dados das execuções para formato de exportação
+      const headers = ['ID', 'Status', 'Executado por', 'Notas', 'Data de Execução'];
+      const rows = executions.map(execution => [
+        execution.id.slice(0, 8),
+        getStatusLabel(execution.status),
+        execution.executed_by,
+        execution.notes || 'Sem notas',
+        execution.executed_at.toLocaleDateString('pt-BR')
+      ]);
+
+      const success = await copyTableData({ headers, rows }, format, 'Execuções de Teste');
+      
+      if (success) {
+        toast({
+          title: "Conteúdo copiado",
+          description: `Execuções copiadas em formato ${format.toUpperCase()} para a área de transferência`,
+        });
+      } else {
+        throw new Error('Falha ao copiar conteúdo');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao copiar",
+        description: error.message || `Erro ao copiar execuções em formato ${format}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -85,6 +138,33 @@ export const TestExecutions = () => {
         </div>
         <div className="flex gap-2 items-center">
           <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+          {executions.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <StandardButton variant="outline" icon={Download}>
+                  Exportar
+                </StandardButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  📁 Exportar CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                  📊 Exportar Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('json')}>
+                  📄 Exportar JSON
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleCopy('txt')}>
+                  📋 Copiar como Texto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCopy('md')}>
+                  📝 Copiar como Markdown
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
               <StandardButton icon={Plus}>
@@ -108,8 +188,8 @@ export const TestExecutions = () => {
               <Card key={execution.id} className="hover:shadow-md transition-shadow h-[280px] flex flex-col">
                 <CardHeader className="pb-3 flex-shrink-0">
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">Execução #{execution.id.slice(0, 8)}</CardTitle>
-                    <Badge className={getStatusColor(execution.status)}>
+                    <CardTitle className="text-base line-clamp-2 leading-tight">Execução #{execution.id.slice(0, 8)}</CardTitle>
+                    <Badge className={`${getStatusColor(execution.status)} flex-shrink-0`}>
                       {getStatusLabel(execution.status)}
                     </Badge>
                   </div>
@@ -155,7 +235,7 @@ export const TestExecutions = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-medium">Execução #{execution.id.slice(0, 8)}</h3>
-                        <Badge className={getStatusColor(execution.status)}>
+                        <Badge className={`${getStatusColor(execution.status)} flex-shrink-0`}>
                           {getStatusLabel(execution.status)}
                         </Badge>
                       </div>
@@ -163,7 +243,7 @@ export const TestExecutions = () => {
                         <span className="font-medium">Executado por:</span> {execution.executed_by}
                       </p>
                       {execution.notes && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
                           {execution.notes}
                         </p>
                       )}
@@ -177,6 +257,7 @@ export const TestExecutions = () => {
                       size="sm"
                       icon={Eye}
                       onClick={() => handleViewDetails(execution)}
+                      className="ml-4 flex-shrink-0"
                     >
                       Ver Detalhes
                     </StandardButton>

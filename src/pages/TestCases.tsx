@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, TestTube, Calendar, Sparkles, Grid, List, Eye } from 'lucide-react';
+import { Plus, TestTube, Calendar, Sparkles, Grid, List, Eye, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getTestCases } from '@/services/supabaseService';
 import { TestCase } from '@/types';
@@ -11,9 +11,12 @@ import { TestCaseForm } from '@/components/forms/TestCaseForm';
 import { DetailModal } from '@/components/DetailModal';
 import { StandardButton } from '@/components/StandardButton';
 import { ViewModeToggle } from '@/components/ViewModeToggle';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 export const TestCases = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [cases, setCases] = useState<TestCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -58,6 +61,57 @@ export const TestCases = () => {
     }
   };
 
+  const handleExport = async (format: 'csv' | 'excel' | 'json') => {
+    try {
+      const { exportSupabaseData } = await import('../utils/export');
+      await exportSupabaseData('casos_teste', cases, format, `casos_teste_${new Date().toISOString().split('T')[0]}`);
+      toast({
+        title: "Exportação realizada",
+        description: `Casos exportados em formato ${format.toUpperCase()}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro na exportação",
+        description: error.message || `Erro ao exportar casos em formato ${format}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopy = async (format: 'txt' | 'md') => {
+    try {
+      const { copyTableData } = await import('../utils/export');
+      
+      // Converter dados dos casos para formato de exportação
+      const headers = ['Título', 'Descrição', 'Prioridade', 'Tipo', 'Gerado por IA', 'Criado em'];
+      const rows = cases.map(testCase => [
+        testCase.title,
+        testCase.description,
+        testCase.priority,
+        testCase.type,
+        testCase.generated_by_ai ? 'Sim' : 'Não',
+        testCase.created_at.toLocaleDateString('pt-BR')
+      ]);
+
+      const success = await copyTableData({ headers, rows }, format, 'Casos de Teste');
+      
+      if (success) {
+        toast({
+          title: "Conteúdo copiado",
+          description: `Casos copiados em formato ${format.toUpperCase()} para a área de transferência`,
+        });
+      } else {
+        throw new Error('Falha ao copiar conteúdo');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao copiar",
+        description: error.message || `Erro ao copiar casos em formato ${format}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -75,6 +129,33 @@ export const TestCases = () => {
         </div>
         <div className="flex gap-2 items-center">
           <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+          {cases.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <StandardButton variant="outline" icon={Download}>
+                  Exportar
+                </StandardButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  📁 Exportar CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                  📊 Exportar Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('json')}>
+                  📄 Exportar JSON
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleCopy('txt')}>
+                  📋 Copiar como Texto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCopy('md')}>
+                  📝 Copiar como Markdown
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
               <StandardButton icon={Plus}>
@@ -152,13 +233,13 @@ export const TestCases = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-medium">{testCase.title}</h3>
                         {testCase.generated_by_ai && (
-                          <Badge variant="secondary" className="flex items-center gap-1">
+                          <Badge variant="secondary" className="flex items-center gap-1 flex-shrink-0">
                             <Sparkles className="h-3 w-3" />
                             IA
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
                         {testCase.description}
                       </p>
                       <div className="flex items-center gap-2 mb-2">
@@ -179,6 +260,7 @@ export const TestCases = () => {
                       size="sm"
                       icon={Eye}
                       onClick={() => handleViewDetails(testCase)}
+                      className="ml-4 flex-shrink-0"
                     >
                       Ver Detalhes
                     </StandardButton>

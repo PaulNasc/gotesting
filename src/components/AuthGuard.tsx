@@ -1,7 +1,6 @@
-
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { AuthPage } from '@/components/AuthPage';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -9,6 +8,13 @@ interface AuthGuardProps {
 
 export const AuthGuard = ({ children }: AuthGuardProps) => {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
 
   if (loading) {
     return (
@@ -19,7 +25,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   }
 
   if (!user) {
-    return <AuthPage />;
+    return null; // Will redirect to login
   }
 
   return <>{children}</>;

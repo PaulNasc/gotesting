@@ -3,10 +3,12 @@ import { useState, useEffect } from 'react';
 
 interface AISettings {
   batchGenerationEnabled: boolean;
+  batchCaseGenerationEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: AISettings = {
   batchGenerationEnabled: false,
+  batchCaseGenerationEnabled: false,
 };
 
 export const useAISettings = () => {

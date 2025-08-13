@@ -1,7 +1,7 @@
 
 import { Button } from '@/components/ui/button';
 import { LucideIcon } from 'lucide-react';
-import { ReactNode } from 'react';
+import { ReactNode, forwardRef } from 'react';
 
 interface StandardButtonProps {
   children?: ReactNode;
@@ -15,7 +15,7 @@ interface StandardButtonProps {
   className?: string;
 }
 
-export const StandardButton = ({ 
+export const StandardButton = forwardRef<HTMLButtonElement, StandardButtonProps>(({ 
   children, 
   onClick, 
   variant = 'default', 
@@ -25,9 +25,10 @@ export const StandardButton = ({
   loading = false,
   type = 'button',
   className = ''
-}: StandardButtonProps) => {
+}, ref) => {
   return (
     <Button
+      ref={ref}
       onClick={onClick}
       variant={variant}
       size={size}
@@ -43,4 +44,6 @@ export const StandardButton = ({
       {children}
     </Button>
   );
-};
+});
+
+StandardButton.displayName = 'StandardButton';

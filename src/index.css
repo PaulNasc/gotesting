@@ -1,7 +1,43 @@
 
+/* stylelint-disable at-rule-no-unknown */
+/* Tailwind CSS directives (interpretadas pelo PostCSS/Tailwind) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* stylelint-enable at-rule-no-unknown */
+
+/* Scrollbar styling (global) */
+/* WebKit */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: theme('colors.muted.DEFAULT', #f3f4f6);
+}
+*::-webkit-scrollbar-thumb {
+  background-color: theme('colors.gray.300', #d1d5db);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: theme('colors.gray.400', #9ca3af);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: theme('colors.gray.400', #9ca3af) theme('colors.muted.DEFAULT', #f3f4f6);
+}
+
+/* Utility class to opt-in where needed */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
 
 @layer base {
   :root {
@@ -87,16 +123,22 @@
 
 @layer base {
   * {
-    @apply border-border;
+    /* Equivalente ao utilitário Tailwind border-border */
+    border-color: hsl(var(--border));
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    /* Equivalente aos utilitários Tailwind bg-background text-foreground font-sans */
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    /* Fallback padrão do Tailwind para font-sans */
+    font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji");
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold;
+    /* Equivalente ao utilitário Tailwind font-semibold */
+    font-weight: 600;
   }
 }
 

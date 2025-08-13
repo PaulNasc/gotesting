@@ -10,15 +10,8 @@ max_rows = 1000
 
 [auth]
 enabled = true
-port = 54324
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["https://mhhzdykyjgrnprcyhlbz.supabase.co"]
 jwt_expiry = 3600
-refresh_token_rotation_enabled = true
-refresh_token_reuse_interval = 10
 
-[edge_functions]
-enabled = true
 
-[functions.generate-with-ai]
-verify_jwt = true

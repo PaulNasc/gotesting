@@ -15,18 +15,120 @@ const API_KEYS_KEY = 'mcp_api_keys';
 const defaultConfig: AIModelConfig = {
   models: [
     {
-      id: 'gemini-pro',
-      name: 'Gemini Pro',
+      id: 'gemini-1.5-flash',
+      name: 'Gemini 1.5 Flash',
       provider: 'gemini',
-      description: 'Google Gemini Pro - Model de linguagem para geração de texto',
-      version: '1.0',
+      description: 'Google Gemini 1.5 Flash - Modelo rápido e eficiente para geração de texto',
+      version: '1.5',
       capabilities: ['test-plan-generation', 'test-case-generation', 'general-completion'],
       defaultForTask: 'test-plan-generation',
       apiKey: 'AIzaSyD5BczH-kaiDNGOPEDz1_VGTTNxyJIngCs',
       active: true,
       settings: {
         temperature: 0.7,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
+        topK: 40,
+        topP: 0.95,
+      }
+    },
+    {
+      id: 'gemini-1.5-pro',
+      name: 'Gemini 1.5 Pro',
+      provider: 'gemini',
+      description: 'Google Gemini 1.5 Pro - Modelo avançado com maior precisão e capacidade de raciocínio',
+      version: '1.5',
+      capabilities: ['test-plan-generation', 'test-case-generation', 'bug-detection', 'code-analysis', 'general-completion'],
+      defaultForTask: 'code-analysis',
+      apiKey: 'AIzaSyD5BczH-kaiDNGOPEDz1_VGTTNxyJIngCs',
+      active: true,
+      settings: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        topK: 40,
+        topP: 0.95,
+      }
+    },
+    {
+      id: 'gemini-1.5-pro-002',
+      name: 'Gemini 1.5 Pro (002)',
+      provider: 'gemini',
+      description: 'Google Gemini 1.5 Pro versão 002 - Última versão com melhorias de performance',
+      version: '1.5-002',
+      capabilities: ['test-plan-generation', 'test-case-generation', 'bug-detection', 'code-analysis', 'general-completion'],
+      defaultForTask: 'bug-detection',
+      apiKey: 'AIzaSyD5BczH-kaiDNGOPEDz1_VGTTNxyJIngCs',
+      active: true,
+      settings: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        topK: 40,
+        topP: 0.95,
+      }
+    },
+    {
+      id: 'gemini-2.0-flash-exp',
+      name: 'Gemini 2.0 Flash (Experimental)',
+      provider: 'gemini',
+      description: 'Google Gemini 2.0 Flash Experimental - Modelo de próxima geração (Requer API Premium)',
+      version: '2.0-exp',
+      capabilities: ['test-plan-generation', 'test-case-generation', 'bug-detection', 'code-analysis', 'general-completion'],
+      defaultForTask: 'general-completion',
+      apiKey: 'AIzaSyD5BczH-kaiDNGOPEDz1_VGTTNxyJIngCs',
+      active: false, // Disabled by default as it requires premium access
+      settings: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        topK: 40,
+        topP: 0.95,
+      }
+    },
+    {
+      id: 'gemini-1.5-flash-8b',
+      name: 'Gemini 1.5 Flash 8B',
+      provider: 'gemini',
+      description: 'Google Gemini 1.5 Flash 8B - Versão otimizada para velocidade com 8 bilhões de parâmetros',
+      version: '1.5-8b',
+      capabilities: ['test-plan-generation', 'test-case-generation', 'general-completion'],
+      defaultForTask: null,
+      apiKey: 'AIzaSyD5BczH-kaiDNGOPEDz1_VGTTNxyJIngCs',
+      active: false,
+      settings: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        topK: 40,
+        topP: 0.95,
+      }
+    },
+    {
+      id: 'gemini-1.5-flash-002',
+      name: 'Gemini 1.5 Flash (002)',
+      provider: 'gemini',
+      description: 'Google Gemini 1.5 Flash versão 002 - Melhorias de performance e precisão',
+      version: '1.5-002',
+      capabilities: ['test-plan-generation', 'test-case-generation', 'general-completion'],
+      defaultForTask: null,
+      apiKey: 'AIzaSyD5BczH-kaiDNGOPEDz1_VGTTNxyJIngCs',
+      active: false,
+      settings: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        topK: 40,
+        topP: 0.95,
+      }
+    },
+    {
+      id: 'gemini-2.0-flash-thinking-exp',
+      name: 'Gemini 2.0 Flash Thinking (Experimental)',
+      provider: 'gemini',
+      description: 'Google Gemini 2.0 Flash Thinking - Modelo experimental com capacidades avançadas de raciocínio',
+      version: '2.0-thinking-exp',
+      capabilities: ['test-plan-generation', 'test-case-generation', 'bug-detection', 'code-analysis', 'general-completion'],
+      defaultForTask: null,
+      apiKey: 'AIzaSyD5BczH-kaiDNGOPEDz1_VGTTNxyJIngCs',
+      active: false,
+      settings: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
         topK: 40,
         topP: 0.95,
       }
@@ -98,15 +200,28 @@ const defaultConfig: AIModelConfig = {
       createdAt: new Date(),
       updatedAt: new Date(),
       active: true
+    },
+    {
+      id: 'general-completion-template-1',
+      name: 'Template Padrão para Completion Geral',
+      task: 'general-completion',
+      template: `
+        {{prompt}}
+      `,
+      description: 'Template para tarefas de completion geral e análise de documentos',
+      parameters: ['prompt'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      active: true
     }
   ],
-  defaultModel: 'gemini-pro',
+  defaultModel: 'gemini-1.5-flash',
   tasks: {
-    'test-plan-generation': 'gemini-pro',
-    'test-case-generation': 'gemini-pro',
-    'bug-detection': 'gemini-pro',
-    'code-analysis': 'gemini-pro',
-    'general-completion': 'gemini-pro'
+    'test-plan-generation': 'gemini-1.5-flash',
+    'test-case-generation': 'gemini-1.5-pro',
+    'bug-detection': 'gemini-1.5-pro-002',
+    'code-analysis': 'gemini-1.5-pro',
+    'general-completion': 'gemini-1.5-flash'
   }
 };
 
@@ -350,8 +465,9 @@ export const loadMCPConfigFromSupabase = async (userId: string): Promise<AIModel
       .single();
       
     if (error) {
-      if (error.code === 'PGRST116') {
-        // Record not found, use default
+      if (error.code === 'PGRST116' || error.code === '42P01') {
+        // Record not found or table doesn't exist, use default
+        console.warn('User settings table not found or no config saved, using default');
         return defaultConfig;
       }
       throw error;
